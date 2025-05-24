@@ -1,0 +1,45 @@
+# Ignore Python cache folder
+__pycache__/
+
+# Project-specific files
+# Ignore all files in the following directories
+backup_scripts
+example_scripts
+example_docs
+test_scripts
+logs
+pids
+
+# Operating System files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE-specific files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+*.suo
+*.user
+
+# Build artifacts
+/build/
+/dist/
+/target/
+*.class
+*.jar
+*.war
+*.ear
+*.o
+*.pyc
+
+# Dependency directories
+node_modules/
+vendor/
+lib/
+venv/
+
+# Log files
+*.log

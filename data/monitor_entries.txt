@@ -1,0 +1,10 @@
+#####################################################################
+# Each line results in a folder monitor
+# The format of each line are the parameters of folder_monitor.py 
+# Comment lines start with #
+# Empty lines are ignored
+#####################################################################
+
+--destination-path "e2:test-zoetebier-net/Test" --monitor-path "D:\Test\FolderMonitor" --base-path "Test" --sync-mode "True"
+--destination-path "e2:test-zoetebier-net/Test2" --monitor-path "D:\Test2\FolderMonitor" --base-path "Test2" --sync-mode "False"
+#--destination-path "onedrive:/Test2" --monitor-path "D:\Test2\FolderMonitor" --base-path "Test2" --sync-mode "True"
