@@ -1,4 +1,5 @@
-import configparser
+# import configparser
+import yaml
 import logging
 from logging.handlers import RotatingFileHandler
 import os
@@ -35,7 +36,7 @@ class LoggingHandler:
         # Create a logger name with the time stamp
         logger_name = f"{logger_name}_{timestamp_with_ms}"
         self.logger = logging.getLogger(logger_name)
-        # Set the logger to debug level initially. Will be changed later by value on monitor.ini
+        # Set the logger to debug level initially. Will be changed later by value on monitor.yaml
         self.logger.setLevel(logging.DEBUG)
         # Add a console handler to the logger
         console_handler = logging.StreamHandler()
@@ -46,8 +47,6 @@ class LoggingHandler:
 
         # Now try to create a rotating file logger
         self.logger.debug("Trying to create a rotating file logger")
-        config = configparser.ConfigParser()
-
         # Get path where the script is running
         script_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -60,23 +59,22 @@ class LoggingHandler:
             self.logger.debug(f"Monitor config file: {config_file}")
             # Now check again if  monitor_config_path exists
             if not os.path.isfile(config_file):
-                self.logger.debug("The configuration file monitor.ini does not exist.")
+                self.logger.debug("The configuration file monitor.yaml does not exist.")
                 return
 
-        # Check if config could read the file
-        self.logger.debug("Can we read config_file?")
-        if not config.read(config_file):
-            self.logger.debug("Failed to read the configuration file monitor.ini.")
+        with open(config_file, 'r') as file:
+            try:
+                config = yaml.safe_load(file)
+            except yaml.YAMLError as exc:
+                self.logger.debug(f"Error reading the configuration file {config_file}: {exc}")
+                return
+        # Check if the config file has the section we need
+        if config_section not in config:
+            self.logger.debug(f"The configuration file {config_file} does not have the section {config_section}.")
             return
-
-        # Check if the file is empty
-        if not config.sections():
-            self.logger.debug("The configuration file is empty.")
-            return
-       
 
         # Create log folder if it does not exist
-        log_folder = config.get(config_section, "log_folder")
+        log_folder = config[config_section]['log_folder']
         if not os.path.isdir(log_folder):
             # Prepend it with the script path
             log_folder = os.path.join(script_path, log_folder)
@@ -120,9 +118,9 @@ class LoggingHandler:
         log_file_name = os.path.join(log_folder, log_file_name)
 
         # Now create a logger using the values from the config file
-        self.logger.debug(f"Get log_level from configuration file: {config.get(config_section, "log_level")}")
+        self.logger.debug(f"Get log_level from configuration file: {config[config_section]['log_level']}")
         # Create a logger
-        log_level = config.get(config_section, "log_level").upper()
+        log_level = config[config_section]['log_level'].upper()
         if log_level == "DEBUG":
             self.logger.setLevel(logging.DEBUG)
         elif log_level == "INFO":
@@ -139,15 +137,17 @@ class LoggingHandler:
         # Create a rotating file handler
         # Get the max file size and backup count from the config file
         # If the values are not set, use default values
-        if not config.has_option(config_section, "log_max_file_size"):
+        if not config[config_section]['log_max_file_size']:
             self.logger.debug("The configuration file does not have the log_max_file_size option. Using default value of 10 MB.")
-            config.set(config_section, "log_max_file_size", "10485760")
-        if not config.has_option(config_section, "log_max_backup_count"):
+            config[config_section]['log_max_file_size'] = "10485760"  # 10 MB in bytes
+        if not config[config_section]['log_max_backup_count']:
             self.logger.debug("The configuration file does not have the log_max_backup_count option. Using default value of 5.")
-            config.set(config_section, "log_max_backup_count", "5")
+            config[config_section]['log_max_backup_count'] = "5"  # 5 backup files
         # Get the max file size and backup count from the config file
-        max_file_size = config.getint(config_section, "log_max_file_size")
-        backup_count = config.getint(config_section, "log_max_backup_count")
+        max_file_size = config[config_section]['log_max_file_size']
+        max_file_size = int(max_file_size)  # Ensure it's an integer
+        backup_count = config[config_section]['log_max_backup_count']
+        backup_count = int(backup_count)  # Ensure it's an integer
         # Check if the max file size is a valid integer
         if not isinstance(max_file_size, int) or max_file_size <= 0:
             self.logger.debug("The max file size is not a valid integer. Using default value of 10 MB.")

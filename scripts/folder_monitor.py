@@ -19,7 +19,7 @@ Usage:
         --base-path:           The path in monitor-path after base-path is appended to the destination-path. Default is ''.
         --destination-path:    Destination path, usually a folder on remote cloud storage.
         --sync-mode:           Allow deletion of files and folders on the destination path. Default is False.
-        --monitor-config-path: Path to monitor configuration file. Default is monitor.ini.
+        --monitor-config-path: Path to monitor configuration file. Default is monitor.yaml.
 Notes:
     - Ensure you have the necessary permissions to access the monitored folder.
     - It is recommended to use a virtual Python environment to avoid conflicts with other packages.
@@ -36,8 +36,8 @@ Entry Point:
 """
 
 import sys
-import os
 import time
+import yaml
 import argparse
 import logging
 from logging.handlers import RotatingFileHandler
@@ -79,7 +79,7 @@ class MyEventHandler(FileSystemEventHandler):
 
 
 class MonitorHandler:
-    def __init__(self, monitor_path, destination_path, base_path="", sync_mode="False", monitor_config_path="monitor.ini"):
+    def __init__(self, monitor_path, destination_path, base_path="", sync_mode="False", monitor_config_path="monitor.yaml"):
         self.monitor_path = monitor_path
         self.destination_path = destination_path
         self.base_path = base_path
@@ -129,7 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--monitor-path", type=str, help="The path of the folder to monitor for changes", required=True)
     parser.add_argument("--base-path", type=str, help="A path or folder name. Everything after base-path is copied to the destination or deleted from the destination, Default =''", default="")
     parser.add_argument("--sync-mode", type=str, help="Allow deletion of files and folders on the destination path. Default is False", default="False")
-    parser.add_argument("--monitor-config-path", type=str, help="Path of monitor configuration file. Default is monitor.ini", default="monitor.ini")
+    parser.add_argument("--monitor-config-path", type=str, help="Path of monitor configuration file. Default is monitor.yaml", default="monitor.yaml")
     # parser.add_argument("--debug", type=bool, help="Run monitor in debug mode. Default is False", default=False)
 
     args = parser.parse_args()

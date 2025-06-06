@@ -25,9 +25,8 @@ Description:
     Replace <path> with the actual path to the file with monitor entries.
 
     Call examples:
-        python folder_monitor_batch.py --monitor-entries-path "D:\\Scripts\\data\\monitor_entries.txt"
-        python folder_monitor_batch.py --monitor-entries-path "D:/Scripts/data/monitor_entries.txt"
-        python folder_monitor_batch.py --monitor-entries-path "/home/username/scripts/data/monitor_entries.txt"
+        python folder_monitor_batch.py --monitor-entries-path "D:/Scripts/conf/monitor_entries.txt"
+        python folder_monitor_batch.py --monitor-entries-path "/home/username/scripts/conf/monitor_entries.txt"
 
     Make sure to use the actual path to the file with monitor entries.
     The double backslashes are used to escape the backslash character in Python strings. Use single backslashes when actually calling the script.
@@ -56,7 +55,7 @@ if __name__ == "__main__":
     logging_handler = LoggingHandler(
         logger_name="folder_monitor_batch",
         log_file_name="folder_monitor_batch.log",
-        config_file="monitor.ini",
+        config_file="monitor.yaml",
         config_section="folder_monitor_batch",
         )
     
@@ -87,7 +86,7 @@ if __name__ == "__main__":
             destination_path=entry['destination_path'],
             base_path=entry['base_path'],
             sync_mode=entry['sync_mode'],
-            monitor_config_path="monitor.ini",
+            monitor_config_path="monitor.yaml",
             )
         # Start the monitor
         logger.info(f"Starting monitor for {entry['monitor_path']} to {entry['destination_path']}")

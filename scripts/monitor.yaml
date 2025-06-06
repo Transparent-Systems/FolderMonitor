@@ -1,0 +1,15 @@
+folder_monitor:
+    log_folder: ../logs
+    # log_folder: C:\Apps\FolderMonitor\logs
+    log_max_file_size: 1000000
+    log_max_backup_count: 3
+    # log_level: debug | info | warning | error | critical
+    log_level: DEBUG
+
+folder_monitor_batch:
+    log_folder: ../logs
+    # log_folder: C:\Apps\FolderMonitor\logs
+    log_max_file_size: 1000000
+    log_max_backup_count: 3
+    log_level: DEBUG
+

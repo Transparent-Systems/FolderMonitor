@@ -26,7 +26,6 @@ Usage:
 
 import logging
 import subprocess
-import os
 import sys
 import shutil
 
