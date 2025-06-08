@@ -55,7 +55,7 @@ if __name__ == "__main__":
     logging_handler = LoggingHandler(
         logger_name="folder_monitor_batch",
         log_file_name="folder_monitor_batch.log",
-        config_file="monitor.yaml",
+        config_file="../conf/monitor.yaml",
         config_section="folder_monitor_batch",
         )
     
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             destination_path=entry['destination_path'],
             base_path=entry['base_path'],
             sync_mode=entry['sync_mode'],
-            monitor_config_path="monitor.yaml",
+            monitor_config_path="../conf/monitor.yaml",
             )
         # Start the monitor
         logger.info(f"Starting monitor for {entry['monitor_path']} to {entry['destination_path']}")

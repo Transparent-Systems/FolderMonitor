@@ -36,7 +36,7 @@ class LoggingHandler:
         # Create a logger name with the time stamp
         logger_name = f"{logger_name}_{timestamp_with_ms}"
         self.logger = logging.getLogger(logger_name)
-        # Set the logger to debug level initially. Will be changed later by value on monitor.yaml
+        # Set the logger to debug level initially. Will be changed later by value off monitor.yaml
         self.logger.setLevel(logging.DEBUG)
         # Add a console handler to the logger
         console_handler = logging.StreamHandler()
