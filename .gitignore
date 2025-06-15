@@ -4,6 +4,7 @@ __pycache__/
 # Project-specific files
 # Ignore all files in the following directories
 backup_scripts
+docs_temp
 example_scripts
 example_docs
 test_scripts
@@ -18,6 +19,7 @@ Desktop.ini
 # IDE-specific files
 .idea/
 .vscode/
+.venv
 *.iml
 *.iws
 *.ipr

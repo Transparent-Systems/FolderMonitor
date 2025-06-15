@@ -1,7 +1,7 @@
 """
-folder_monitor.py
+folder_copy.py
 Author: John Zoetebier
-Date: 2025-05-10
+Date: 2025-06-15
     It logs the type of change and the file path to both the console and a log file.
     The script utilizes the rclone_handler module to copy or delete files and folders using rclone.
     Designed to run indefinitely, it monitors the specified folder for changes until interrupted by the user (Ctrl+C).
@@ -12,7 +12,7 @@ Requirements:
     3) Python module watchdog
 Usage:
     Example:
-    python folder_monitor.py --monitor-path "D:\\Cloud\\Test" --base-path "Cloud" --destination-path "e2:test-zoetebier-net/Cloud" --sync-mode True
+    python folder_copy.py --monitor-path "D:\\Cloud\\Test" --base-path "Cloud" --destination-path "e2:test-zoetebier-net/Cloud" --sync-mode True
 
     Arguments:
         --monitor-path:        Path to the folder to monitor for changes.
@@ -90,10 +90,10 @@ class MonitorHandler:
         # Ensure logging_handler is an instance variable, otherwise it will be garbage collected and the logger will be None
         # LoggingHandler will create a unique logger_name
         self.logging_handler = LoggingHandler(
-            logger_name="folder_monitor",
+            logger_name="folder_copy",
             log_file_name=f"monitor_{monitor_path}_to_{destination_path}.log",
             config_file=monitor_config_path,
-            config_section="folder_monitor",
+            config_section="folder_copy",
         )
 
         self.logger = self.logging_handler.logger
@@ -124,7 +124,7 @@ class MonitorHandler:
 if __name__ == "__main__":
     print("This is file_monitor script running directly.")
     parser = argparse.ArgumentParser(description="This script monitors changes on files and subfolders in the monitor folder.")
-    parser.usage = "python folder_monitor.py --destination-path <path> --base-path <path> --monitor-path <path> --sync-mode <True/False> --monitor-config-path <path>"
+    parser.usage = "python folder_copy.py --destination-path <path> --base-path <path> --monitor-path <path> --sync-mode <True/False> --monitor-config-path <path>"
     parser.add_argument("--destination-path", type=str, help="The destination path, usually a folder on a remote cloud storage", required=True)
     parser.add_argument("--monitor-path", type=str, help="The path of the folder to monitor for changes", required=True)
     parser.add_argument("--base-path", type=str, help="A path or folder name. Everything after base-path is copied to the destination or deleted from the destination, Default =''", default="")

@@ -113,7 +113,7 @@ class RcloneHandler:
             rclone_command = [rclone_path, "copy", "--transfers", "16", source_folder, destination_path]
 
             try:
-                self.logger.debug(f"Running command: {" ".join(rclone_command)}")
+                self.logger.debug(f"Running command: {' '.join(rclone_command)}")
                 result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
                 # Check if the command was successful
                 if result_process.returncode == 0:
@@ -133,7 +133,7 @@ class RcloneHandler:
             rclone_command = [rclone_path, "copyto", "--transfers", "16", "--s3-no-check-bucket", source_path, destination_path]
 
             try:
-                self.logger.debug(f"Running command: {" ".join(rclone_command)}")
+                self.logger.debug(f"Running command: {' '.join(rclone_command)}")
                 # If command fails it will trigger an exception
                 result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
                 # Check if the command was successful
@@ -179,7 +179,7 @@ class RcloneHandler:
             rclone_command = [rclone_path, "delete", "--transfers", "16", destination_path]
 
         try:
-            self.logger.debug(f"Running command: {" ".join(rclone_command)}")
+            self.logger.debug(f"Running command: {' '.join(rclone_command)}")
             result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
 
             # Check if the command was successful
@@ -201,7 +201,7 @@ class RcloneHandler:
         rclone_command = [rclone_path, "copy", "--transfers", "16", source_folder, destination_path, "--include", file_name]
 
         try:
-            self.logger.debug(f"Running command: {" ".join(rclone_command)}")
+            self.logger.debug(f"Running command: {' '.join(rclone_command)}")
             result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
             # Check if the command was successful
             if result_process.returncode == 0:
