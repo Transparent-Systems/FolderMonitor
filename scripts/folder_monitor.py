@@ -81,7 +81,6 @@ class MyEventHandler(FileSystemEventHandler):
 
     def on_moved(self, event):
         self.logger.info(f"on_moved - renamed from {event.src_path} to {event.dest_path}")
-        # Delete from file or folder at destination
         self.rclone_handler.delete(event.src_path, event.is_directory)
         self.rclone_handler.copy(event.dest_path, event.is_directory)
 
