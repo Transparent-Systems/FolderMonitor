@@ -1,4 +1,3 @@
-# import configparser
 import yaml
 import logging
 from logging.handlers import RotatingFileHandler

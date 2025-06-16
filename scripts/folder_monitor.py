@@ -1,5 +1,6 @@
 """
-folder_monitor.py
+Script: folder_monitor.py
+Version: v1.0.0
 Author: John Zoetebier
 Date: 2025-05-10
     It logs the type of change and the file path to both the console and a log file.
@@ -9,7 +10,7 @@ Date: 2025-05-10
 Requirements:
     1) rclone v1.64.2 (https://rclone.org/downloads/)
     2) Python 3.13.0 (https://www.python.org/downloads/)
-    3) Python module watchdog
+    3) Python modules in requirements.txt
 Usage:
     Example:
     python folder_monitor.py --monitor-path "D:\\Cloud\\Test" --base-path "Cloud" --destination-path "e2:test-zoetebier-net/Cloud" --sync-mode True
@@ -24,10 +25,11 @@ Notes:
     - Ensure you have the necessary permissions to access the monitored folder.
     - It is recommended to use a virtual Python environment to avoid conflicts with other packages.
     - To create and activate a virtual environment:
-        myenv\\Scripts\\activate  (Windows)
-        source myenv/bin/activate  (macOS/Linux)
-    - After Python has been installed you can install module watchdog with:
-        pip install watchdog
+        python -m venv .venv
+        .\.venv\Scripts\Activate.ps1  (Windows)
+        source .venv/bin/activate  (macOS/Linux)
+    - After Python has been installed you can install required modules with:
+        pip install -r requirements.txt
 Classes:
     MyEventHandler: Handles file system events and triggers rclone operations.
     MonitorHandler: Manages the observer and event handler lifecycle.
@@ -49,6 +51,16 @@ from rclone_handler import RcloneHandler
 
 
 class MyEventHandler(FileSystemEventHandler):
+    """
+    A custom event handler that processes file system events and triggers rclone operations.
+    This class is designed to handle file creation, deletion, modification, and movement events.
+    Args:
+        rclone_handler (RcloneHandler): An instance of RcloneHandler to perform file operations.
+        logger (logging.Logger): An optional logger instance for logging events. If not provided, a default logger is created.
+    Examples:
+        >>> rclone_handler = RcloneHandler("e2:/test-zoetebier-net/Test", "Test", True)
+        >>> event_handler = MyEventHandler(rclone_handler)
+    """
 
     def __init__(self, rclone_handler, logger=None):
         self.rclone_handler = rclone_handler
@@ -57,7 +69,7 @@ class MyEventHandler(FileSystemEventHandler):
        
     def on_created(self, event):
         self.logger.info(f"on_created: {event.src_path}, event.is_directory: {event.is_directory}")
-        # Always followed by a on-modified event, so do nothing
+        self.rclone_handler.copy(event.src_path, event.is_directory)
 
     def on_deleted(self, event):
         self.logger.info(f"on_deleted: {event.src_path}, event.is_directory: {event.is_directory}")
@@ -71,7 +83,7 @@ class MyEventHandler(FileSystemEventHandler):
         self.logger.info(f"on_moved - renamed from {event.src_path} to {event.dest_path}")
         # Delete from file or folder at destination
         self.rclone_handler.delete(event.src_path, event.is_directory)
-        # This event will trigger a on-modified event. No further action required here
+        self.rclone_handler.copy(event.dest_path, event.is_directory)
 
     def __del__(self):
         self.logger.info("Event handler closed")
@@ -79,6 +91,25 @@ class MyEventHandler(FileSystemEventHandler):
 
 
 class MonitorHandler:
+    """
+    A class to monitor a folder for changes and trigger rclone operations.  
+    The class has been tested with Python >= 3.10 and rclone v1.64.2.
+    Args:
+        monitor_path (str): The path of the folder to monitor for changes.
+        destination_path (str): The destination path, usually a folder on remote cloud storage.
+        base_path (str): A path or folder name. Everything after base-path is copied to the destination or deleted from the destination. Default is ''.
+        sync_mode (str): Allow deletion of files and folders on the destination path. Default is "False".
+        monitor_config_path (str): Path of monitor configuration file. Default is "../conf/monitor.yaml".
+    Examples:
+        >>> monitor_handler = MonitorHandler(
+                monitor_path="D:/Cloud/Test",
+                destination_path="e2:test-zoetebier-net/Cloud",
+                base_path="Cloud",
+                sync_mode="True",
+                monitor_config_path="../conf/monitor.yaml"
+            )
+        >>> monitor_handler.start_monitor()
+    """
     def __init__(self, monitor_path, destination_path, base_path="", sync_mode="False", monitor_config_path="../conf/monitor.yaml"):
         self.monitor_path = monitor_path
         self.destination_path = destination_path

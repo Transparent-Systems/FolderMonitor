@@ -1,4 +1,6 @@
 """
+Script: folder_monitor_batch.py
+Version: v1.0.0
 Author: John Zoetebier
 Date: 2025-05-10
 Description: 
@@ -75,9 +77,9 @@ if __name__ == "__main__":
         if 'sync_mode' not in entry:
             entry['sync_mode'] = "False"
         logger.info("==========================")
-        logger.info(f"Destination Path: {entry['destination_path']}")
         logger.info(f"Monitor Path: {entry['monitor_path']}")
         logger.info(f"Base Path: {entry['base_path'] if 'base_path' in entry else ''}")
+        logger.info(f"Destination Path: {entry['destination_path']}")
         logger.info(f"Sync Mode: {entry['sync_mode'] if 'sync_mode' in entry else 'False'}")
 
         # Create an instance of MonitorHandler for each entry
