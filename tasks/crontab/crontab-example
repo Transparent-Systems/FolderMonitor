@@ -28,5 +28,5 @@
 # @reboot : command after @reboot runs when the PC is booted
 #@reboot date > /home/user/logs/crontab.log
 # In command below replace user by your username
-@reboot /usr/bin/python3 /home/user/scripts/folder_monitor.py --destination-path "e2:test-zoetebier-net/test" --monitor-path "/home/user/test/foldermonitor" --base-path "test" --sync-mode "True"
+@reboot /usr/bin/python3 /home/user/scripts/folder_monitor.py --destination-path "e2:test-foldermonitor/test" --monitor-path "/home/user/test/foldermonitor" --base-path "test" --sync-mode "True"
 

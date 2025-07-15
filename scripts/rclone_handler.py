@@ -45,29 +45,23 @@ class RcloneHandler:
     Args:
         destination_path (str): The path to the destination where the file or folder will be copied to.
         base_path (str): The base path of the source_path, used to strip the base path from the source_path.
-        sync_mode (bool): If True, allows deletion of files and folders at the destination path.
+        copy_mode (str): [copy | sync] Sync allows deletion of files and folders at the destination path.
         Examples:
-            >>> rclone_handler = RcloneHandler("e2:/test-zoetebier-net/Test", "Test", True)
+            >>> rclone_handler = RcloneHandler("e2:/test-foldermonitor/Test", "Test", True)
             >>> rclone_handler.copy("D:/Test/test1.txt", False)
     """
 
-    def __init__(self, destination_path, base_path="", sync_mode="False", logger=None):
+    def __init__(self, destination_path, base_path="", copy_mode="copy", logger=None):
         self.logger = logger
         self.destination_path = destination_path.replace("\\", "/")    # Ensure forward slashes for compatibility with rclone
         self.destination_path = self.destination_path.rstrip("/") # Ensure no trailing slash
-        
         self.base_path = base_path.replace("\\", "/") # Ensure forward slashes for compatibility with rclone   
         self.base_path = self.base_path.rstrip("/") # Ensure no trailing slash
-        
-        sync_mode = sync_mode.lower()
-        if sync_mode == "true":
-            self.sync_mode = True
-        elif sync_mode == "false":
-            self.sync_mode = False
-        else:
-            self.logger.debug("Invalid value for sync_mode. Please use 'True' or 'False'.")
+        self.copy_mode = copy_mode.lower()
+        if not(copy_mode == "copy" or copy_mode == "sync"):
+            self.logger.error("Invalid value for copy_mode. Please use 'copy' or 'sync'.")
             sys.exit(1)
-        
+       
 
 
     def __get_relative_folder(self, path, token):
@@ -150,7 +144,7 @@ class RcloneHandler:
     # Delete the file or folder at the destination path using rclone
     def delete(self, source_path, is_directory=False):
         """
-        If sync_mode is set to True, delete the file or folder at the destination using rclone.
+        If copy_mode is sync, then delete the file or folder at the destination using rclone.
         else, do nothing.
 
         If the source path is a file, it will delete the file at the destination path.
@@ -166,7 +160,7 @@ class RcloneHandler:
 
         """
 
-        if not self.sync_mode:
+        if self.copy_mode == 'copy':
             return
         
         source_path = source_path.replace("\\", "/")
@@ -176,7 +170,7 @@ class RcloneHandler:
         if is_directory:
             rclone_command = [rclone_path, "delete", "--transfers", "16", "--rmdirs", destination_path]
         else:
-            rclone_command = [rclone_path, "delete", "--transfers", "16", destination_path]
+            rclone_command = [rclone_path, "deletefile", "--transfers", "16", destination_path]
 
         try:
             self.logger.debug(f"Running command: {' '.join(rclone_command)}")

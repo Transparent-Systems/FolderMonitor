@@ -6,7 +6,6 @@ __pycache__/
 backup_scripts
 docs_temp
 example_scripts
-example_docs
 test_scripts
 logs
 pids

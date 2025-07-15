@@ -1,24 +1,41 @@
-folder_monitor:
-    log_folder: ../logs
-    # log_folder: C:\Apps\FolderMonitor\logs
+logging:
+    log_file_name: folder_monitor.log
+    log_folder: logs
+    # log_folder: C:/Apps/FolderMonitor/logs
     log_max_file_size: 1000000
     log_max_backup_count: 3
     # log_level: debug | info | warning | error | critical
-    log_level: DEBUG
+    log_level: debug
 
-folder_monitor_batch:
-    log_folder: ../logs
-    # log_folder: C:\Apps\FolderMonitor\logs
-    log_max_file_size: 1000000
-    log_max_backup_count: 3
-    log_level: DEBUG
-
-folder_copy:
-    log_folder: ../logs
-    # log_folder: C:\Apps\FolderMonitor\logs
-    log_max_file_size: 1000000
-    log_max_backup_count: 1
-    # log_level: debug | info | warning | error | critical
-    log_level: DEBUG
-
-
+monitors:
+    # These are the folder monitors that will be started
+    # If backup_interval >= 0 this will trigger a folder backup besides the running folder monitor
+    # - name: "monitor name"
+    #   monitor_path: "folder to monitor"
+    #   base_path: "path after base_path in monitor_path will be added to destination_path"
+    #   destination_path: "cloud storage, local folder or shared folder"
+    #   copy_mode: "sync | copy" # sync will delete files in destination_path that are not in source folder
+    #   backup_interval: "1d" #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one backup only. Negative means no backup.
+    #   backup_interval: "" # Backup is disabled
+    #   backup_interval: "0" # Backup runs once only immediately after start
+    #   backup_interval: "1m" # If interval > 0 then backup runs every time after interval
+    #   enabled: "true | false" # if true, the monitor will be started
+    - name: "test cloud to drive"
+      monitor_path: "D:/Cloud/Test/Test1"
+      base_path: "Cloud"
+      destination_path: "drive:test-foldermonitor/Cloud"
+      copy_mode: "sync" 
+      # backup_interval: "" # Backup Disabled
+      backup_interval: "0" # Backup runs once only immediately after start
+      # backup_interval: "1m" # If interval > 0 then backup runs every time after interval
+      enabled: true
+    - name: "test cloud to e2"
+      monitor_path: "D:/Cloud/Test/Test2"
+      base_path: "Cloud"
+      destination_path: "e2:test-foldermonitor/Cloud"
+      copy_mode: "sync" 
+      # backup_interval: "" # Backup Disabled
+      # backup_interval: "0" # Backup runs once only immediately after start
+      # backup_interval: "1m" # If interval > 0 then backup runs every time after interval
+      enabled: false
+   
