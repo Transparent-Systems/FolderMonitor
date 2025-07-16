@@ -50,11 +50,47 @@ from watchdog.events import FileSystemEventHandler
 from rclone_handler import RcloneHandler
 
 
+def configure_pid_file(pid_file_path):
+    # --- Configuration for PID file ---
+    script_has_crashed = False
+
+    # Write process ID to the crash PID file
+    if os.path.exists(pid_file_path):
+        logger.debug(f"Crash PID file '{pid_file_path}' already exists. This indicates a previous crash or an unclean shutdown.")
+        script_has_crashed = True
+    else:
+        logger.debug(f"Crash PID file '{pid_file_path}' does not exist. Creating a new one.")
+        logger.debug("This script will now enter normal mode.")
+        # Ensure the pid directory exists
+        pid_dir = os.path.dirname(pid_file_path)
+        if not os.path.exists(pid_dir):
+            try:
+                os.makedirs(pid_dir)
+                logger.debug(f"PID directory '{pid_dir}' created.")
+            except OSError as e:
+                logger.debug(f"Error creating PID directory {pid_dir}: {e}")
+                sys.exit(1)
+
+    # Create the crash PID file with the current process ID
+    # This is useful for crash recovery scenarios where the script was not stopped cleanly
+    try:
+        pid = os.getpid()  # Get the current process ID
+        with open(pid_file_path, 'w') as f:
+            f.write(str(pid))
+        logger.debug(f"Crash PID file: {pid_file_path} with PID {pid}")
+    except OSError as e:
+        logger.debug(f"Error creating crash PID file {pid_file_path}: {e}")
+        sys.exit(1)
+    # --- End Configuration for PID file ---
+    return script_has_crashed
+   
+
+
 # Function to parse time strings like "1m", "5s", "1h"
 # Returns seconds as an integer, or None if invalid/negative
-def parse_time_string(time_str):
+def parse_time_string(time_str, default_value=None):
     if not isinstance(time_str, str) or not time_str:
-        return None # Handles missing or empty
+        return default_value # Handles missing or empty
     
     time_str = time_str.strip().lower()
 
@@ -70,16 +106,14 @@ def parse_time_string(time_str):
         else:
             value = int(time_str) # Allow raw numbers (e.g., "30" for 30 seconds)
 
-        if value < 0:
-            return None # Handles negative intervals
         return value
     except ValueError:
-        return None # Handles unparseable strings
+        return default_value # Handles unparseable strings
 
 # Perform backup
 def perform_backup(monitor_config, rclone_handler, reason="scheduled"):
     monitor_name = monitor_config["name"]
-    logger.debug(f"[{monitor_name}] Performing {reason} backup at {time.ctime()} for: {monitor_config['monitor_path']} -> {monitor_config['destination_path']}")
+    logger.debug(f"Performing {reason} backup for monitor [{monitor_name}] at {time.ctime()} for: {monitor_config['monitor_path']} -> {monitor_config['destination_path']}")
     # Use rclone_handler for backup operations
     # This will also trigger and event for all files backed up in the corresponding monitor
     # That is expected behaviour of rclone_handler.copy()
@@ -92,40 +126,37 @@ def perform_backup(monitor_config, rclone_handler, reason="scheduled"):
 # This is the function that each thread will execute
 def monitor_backup_task(monitor_config, is_crash_recovery=False):
     monitor_name = monitor_config["name"]
-    raw_interval = monitor_config.get("backup_interval")
-    interval_seconds = parse_time_string(raw_interval)
+    raw_interval = monitor_config.get("backup_interval", None)  # Default to None if not specified
+    interval_seconds = parse_time_string(raw_interval,0)  # Default to 0 if parsing fails
 
     destination_path = monitor_config.get("destination_path")
     base_path = monitor_config.get("base_path", "")
     copy_mode = monitor_config.get("copy_mode", "copy") # Default to "copy"
     rclone_handler = RcloneHandler(destination_path, base_path, copy_mode, logger)
 
-    # Determine the effective interval and behavior based on crash recovery and config
-    if is_crash_recovery:
-        logger.debug(f"[{monitor_name}] Server crash detected. Forcing one-off backup.")
-        perform_backup(monitor_config, rclone_handler, reason="crash recovery")
-        rclone_handler = None # Clean up the rclone handler
-        return # Exit the thread after one-off backup
-    elif interval_seconds is None or interval_seconds < 0: # This check is redundant due to parse_time_string but good for clarity
-        logger.debug(f"[{monitor_name}] Backup interval is missing, empty, or negative ('{raw_interval}'). No recurring backup will be performed.")
-        rclone_handler = None # Clean up the rclone handler
-        return # Exit the thread if no valid interval for recurring backup
-    elif interval_seconds == 0:
-        logger.debug(f"[{monitor_name}] Backup interval is 0. Performing one-off backup.")
+    # Determine the effective interval and corresponding behavior
+    # The logic for determining the backup interval is as follows:
+    # - If the interval is negative, no backup will be performed.
+    # - If the interval is None or 0, a one-off backup will be performed immediately.
+    # - If the interval is positive, a recurring backup will be performed at the specified interval.
+    # Check for None first to avoid TypeError when comparing with integers
+    if  interval_seconds == None or interval_seconds == 0:
+        logger.debug(f"[{monitor_name}] Backup interval is missing, empty, or 0. Performing one-off backup.")
         perform_backup(monitor_config, rclone_handler, reason="one-off (interval 0)")
         rclone_handler = None # Clean up the rclone handler
         return # Exit the thread after one-off backup
+    elif interval_seconds < 0:
+        logger.debug(f"[{monitor_name}] Backup interval is negative ('{raw_interval}'). No backup will be performed.")
+        rclone_handler = None # Clean up the rclone handler
+        return # Exit the thread if no valid interval for recurring backup
     else:
         logger.debug(f"[{monitor_name}] Monitor started. Next scheduled backup in {interval_seconds} seconds.")
         # No immediate backup. The first backup will occur after the initial delay.
         # This loop will run indefinitely for recurring backups
         while True:
-            time.sleep(interval_seconds)
             perform_backup(monitor_config, rclone_handler, reason="scheduled")
+            time.sleep(interval_seconds)
 
-
-def check_for_crash_pin():
-    return os.path.exists(CRASH_PIN_FILE)
 
 
 # Create a unique logger instance with a name based on UUID import uuid
@@ -204,19 +235,19 @@ class MonitorHandler:
     The class has been tested with Python >= 3.10 and rclone v1.64.2.
     Args:
         monitor_config (dictionary): The monitor configuration dictionary configured in the monitor yaml file
-        logging_config (dictionary): The logging configuration dictionary configured on the monitor yaml file
+        log_config (dictionary): The logging configuration dictionary configured on the monitor yaml file
     """
-    def __init__(self, monitor_config, logging_config):
+    def __init__(self, monitor_config, log_config):
         self.monitor_config = monitor_config
-        self.logging_config = logging_config
+        self.log_config = log_config
         self.monitor_running = False        
         self.observer = None
         # # Create LoggingHandler instance
         # self.logging_handler = LoggingHandler(
-        #     log_config=logging_config,
+        #     log_config=log_config,
         # )
 
-        self.logger = get_unique_logger(logging_config)
+        self.logger = get_unique_logger(log_config)
 
         if monitor_config.get('enabled') is False:
             self.logger.debug("Monitor is disabled. Exiting MonitorHandler __init__")
@@ -265,13 +296,11 @@ if __name__ == "__main__":
     parser.add_argument("--monitor-config-path", type=str, help="Path of monitor configuration file. Default is conf/monitor.yaml", default="conf/monitor.yaml")
     args = parser.parse_args()
 
-    # --- Configuration for PIN file ---
-    CRASH_PIN_FILE = "crash_pin.txt"
 
     # Load configuration from the monitor config file
     config_handler = ConfigHandler(args.monitor_config_path)
-    logging_config = config_handler.get_config("logging")
-    if logging_config is None:
+    log_config = config_handler.get_config("logging")
+    if log_config is None:
         print(f"Configuration for 'folder_monitor' not found in {args.monitor_config_path}.")
         sys.exit(1)
 
@@ -279,10 +308,10 @@ if __name__ == "__main__":
     # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
     log_queue = queue.Queue(-1)
 
-    LOG_FILE = logging_config.get('log_file', 'folder_monitor.log')
-    LOG_FOLDER = logging_config.get('log_folder', 'logs')
-    MAX_BYTES = logging_config.get('max_bytes', 10 * 1024 * 1024)  # Default to 10 MB
-    BACKUP_COUNT = logging_config.get('backup_count', 5)  # Default to
+    LOG_FILE = log_config.get('log_file', 'folder_monitor.log')
+    LOG_FOLDER = log_config.get('log_folder', 'logs')
+    MAX_BYTES = log_config.get('max_bytes', 10 * 1024 * 1024)  # Default to 10 MB
+    BACKUP_COUNT = log_config.get('backup_count', 5)  # Default to
 
     rotating_log_file = os.path.join(LOG_FOLDER, LOG_FILE)
     # Ensure the log folder exists
@@ -335,9 +364,14 @@ if __name__ == "__main__":
     # --- End Central Logging Setup ---
 
     # # Get a unique logger instance
-    logger = get_unique_logger(logging_config)
-    logger.debug(f"folder_monitor: start processing configured monitors")
+    logger = get_unique_logger(log_config)
+    logger.debug(f"folder_monitor: setup logging ready. Log level: {log_config.get('log_level', 'INFO').upper()}")
 
+    # --- Configuration for PID file ---
+    CRASH_PID_FILE = "pid/crash_pid.txt"
+    (script_has_crashed) = configure_pid_file(CRASH_PID_FILE)
+
+    # --- Processing Monitors ---
     monitors = config_handler.get_config("monitors")
     if monitors is None:
         logger.error(f"Configuration for 'monitors' not found in {args.monitor_config_path}.")
@@ -351,7 +385,7 @@ if __name__ == "__main__":
         # Create a MonitorHandler instance for the current monitor
         monitor_handler = MonitorHandler(
             monitor_config=monitor,
-            logging_config=logging_config,
+            log_config=log_config,
         )
 
         if not monitor_handler.monitor_running:
@@ -365,11 +399,10 @@ if __name__ == "__main__":
 
 
     # BEGIN: backups
-    is_crash_recovery_mode = check_for_crash_pin()
-    if is_crash_recovery_mode:
-        logger.debug(f"--- CRASH PIN DETECTED: {CRASH_PIN_FILE} --- Entering Crash Recovery Mode ---")
+    if script_has_crashed:
+        logger.debug(f"--- CRASH PID DETECTED: {CRASH_PID_FILE} --- Entering Crash Recovery Mode ---")
     else:
-        logger.debug("--- No crash PIN detected. Operating in normal mode. ---")
+        logger.debug("--- No crash PID detected. Operating in normal mode. ---")
 
     active_threads = []
 
@@ -385,7 +418,7 @@ if __name__ == "__main__":
         if monitor.get("enabled", True): # Default to enabled if not specified
             thread = threading.Thread(
                 target=monitor_backup_task,
-                args=(monitor, is_crash_recovery_mode), # Pass crash recovery flag
+                args=(monitor, script_has_crashed), # Pass crash recovery flag
                 daemon=True
             )
             thread.start()
@@ -394,30 +427,16 @@ if __name__ == "__main__":
         else:
             logger.debug(f"Monitor '{monitor['name']}' is explicitly disabled.")
 
+    logger.debug("All monitor backup threads initiated.")
     # END: backups
-
-    logger.debug("\nAll monitor threads initiated. Press Ctrl+C to exit.")
 
     # Keep the script running on the main thread
     # until interrupted by the user          
     try:
+        # Wait for interrupts or other exceptions
+        logger.info("Folder monitor script is running. Press Ctrl+C to stop.")
         while True:
             time.sleep(1)  # Sleep for a short duration to avoid busy-waiting
-            # Update modification time of monitor root folder every backup_interval
-            # monitor_paths = set()
-            # for monitor_handler in monitor_handlers:
-            #     # Do not trigger a backup for the same monitor_folder twice
-            #     if monitor_handler.monitor_path in monitor_paths:
-            #         continue
-
-            #     monitor_paths.add(monitor_handler.monitor_path)
-            #     if  not monitor_handler.monitor_running:
-            #         continue
-
-            #     # Update the modification time of the monitor path to trigger a backup
-            #     # This is safeguard for when the monitor has been interrupted while in the middle of processing changes
-            #     update_folder_modification_time(monitor_handler.monitor_path)
-            #     logger.debug(f"Updating modification time for {monitor_handler.monitor_path}")
     except Exception as e:
         # logger.debug(f"Exception occurred: {e}")
         logger.error(f"Exception occurred: {e}")
@@ -441,10 +460,10 @@ if __name__ == "__main__":
             thread = None
     logger.info("All threads finished.")
               
-    # If the crash PIN file exists, remove it
-    if os.path.exists(CRASH_PIN_FILE):
-       logger.info(f"Removing crash PIN file: {CRASH_PIN_FILE}")
-       os.remove(CRASH_PIN_FILE) 
+    # If the crash PID file exists, remove it
+    if os.path.exists(CRASH_PID_FILE):
+       logger.info(f"Removing crash PID file: {CRASH_PID_FILE}")
+       os.remove(CRASH_PID_FILE) 
 
     logger.info("Exiting folder_monitor script.")
     # Stop the queue listener

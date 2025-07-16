@@ -8,7 +8,7 @@ docs_temp
 example_scripts
 test_scripts
 logs
-pids
+pid
 
 # Operating System files
 .DS_Store

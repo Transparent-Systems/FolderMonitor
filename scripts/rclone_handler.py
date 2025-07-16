@@ -104,7 +104,18 @@ class RcloneHandler:
             source_folder = source_path
             relative_folder = self.__get_relative_folder(source_folder, self.base_path)
             destination_path = self.destination_path + relative_folder
-            rclone_command = [rclone_path, "copy", "--transfers", "16", source_folder, destination_path]
+
+            if self.copy_mode == 'sync':
+                # Use rclone sync to ensure the destination is an exact copy of the source
+                rclone_command = [rclone_path, "sync", "--transfers", "16", source_folder, destination_path]
+            else:  # If copy_mode is 'copy'
+                # Use rclone copy to copy the folder and its contents
+                # This will not delete files at the destination that are not present in the source
+                # The --transfers flag allows multiple transfers to run in parallel
+                # This is useful for large folders with many files
+                # The --s3-no-check-bucket flag handles the use case where the user has no CreateBucket permissions
+                rclone_command = [rclone_path, "copy", "--transfers", "16", source_folder, destination_path]
+
 
             try:
                 self.logger.debug(f"Running command: {' '.join(rclone_command)}")
