@@ -47,6 +47,7 @@ import uuid
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from watchdog.events import FileSystemEvent, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirCreatedEvent, DirDeletedEvent, DirMovedEvent, DirModifiedEvent # Import DirModifiedEvent specifically
 from rclone_handler import RcloneHandler
 
 
@@ -140,8 +141,13 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
     # - If the interval is None or 0, a one-off backup will be performed immediately.
     # - If the interval is positive, a recurring backup will be performed at the specified interval.
     # Check for None first to avoid TypeError when comparing with integers
-    if  interval_seconds == None or interval_seconds == 0:
-        logger.debug(f"[{monitor_name}] Backup interval is missing, empty, or 0. Performing one-off backup.")
+
+    if  interval_seconds == None:
+        logger.debug(f"[{monitor_name}] Backup interval is empty or missing. Set backup interval to 0.")
+        interval_seconds = 0  # Treat None as 0 for one-off backup
+
+    if  interval_seconds == 0:
+        logger.debug(f"[{monitor_name}] Backup interval is 0. Performing one-off backup.")
         perform_backup(monitor_config, rclone_handler, reason="one-off (interval 0)")
         rclone_handler = None # Clean up the rclone handler
         return # Exit the thread after one-off backup
@@ -276,7 +282,28 @@ class MonitorHandler:
         rclone_handler = RcloneHandler(self.destination_path, self.base_path, self.copy_mode, self.logger)
         event_handler = MyEventHandler(rclone_handler, self.logger)
         self.observer = Observer()
-        self.observer.schedule(event_handler, self.monitor_path, recursive=True)
+
+        # Define the event filter:
+        # Include all event types except DirModifiedEvent.
+        # This means on_modified will only be called for FileModifiedEvent.
+        # on_created, on_deleted, on_moved will still work for both files and directories.
+        event_types_to_monitor = [
+            FileCreatedEvent,
+            FileDeletedEvent,
+            FileModifiedEvent,
+            FileMovedEvent,
+            DirCreatedEvent,
+            DirDeletedEvent,
+            DirMovedEvent,
+            # IMPORTANT: Exclude DirModifiedEvent if you don't want folder access_time changes
+            # or other non-content directory modifications to trigger on_modified.
+            # If you uncomment the next line, DirModifiedEvent will be included.
+            # DirModifiedEvent, # <--- DO NOT INCLUDE THIS IF YOU WANT TO FILTER OUT FOLDER ACCESS CHANGES
+        ]
+
+        self.observer.schedule(event_handler, self.monitor_path, recursive=True,
+                               event_filter=event_types_to_monitor)
+        # self.observer.schedule(event_handler, self.monitor_path, recursive=True)
         self.observer.start()
         self.logger.info(f"Observer {self.observer.name} started on folder {self.monitor_path}")
 
