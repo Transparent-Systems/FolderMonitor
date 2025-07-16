@@ -400,9 +400,9 @@ if __name__ == "__main__":
 
     # BEGIN: backups
     if script_has_crashed:
-        logger.debug(f"--- CRASH PID DETECTED: {CRASH_PID_FILE} --- Entering Crash Recovery Mode ---")
+        logger.debug(f"--- CRASH PID DETECTED: {CRASH_PID_FILE} --- ")
     else:
-        logger.debug("--- No crash PID detected. Operating in normal mode. ---")
+        logger.debug("--- No crash PID detected. ---")
 
     active_threads = []
 
@@ -435,6 +435,7 @@ if __name__ == "__main__":
     try:
         # Wait for interrupts or other exceptions
         logger.info("Folder monitor script is running. Press Ctrl+C to stop.")
+        logger.info("If script does not stop on Ctrl+C then a backup job might be running. Try again after the backup has finished.")
         while True:
             time.sleep(1)  # Sleep for a short duration to avoid busy-waiting
     except Exception as e:
