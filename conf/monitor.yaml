@@ -25,17 +25,17 @@ monitors:
       base_path: "Cloud"
       destination_path: "drive:test-foldermonitor/Cloud"
       copy_mode: "sync" 
-      # backup_interval: "" # Backup Disabled
-      backup_interval: "0" # Backup runs once only immediately after start
-      # backup_interval: "30" # If interval > 0 then backup runs every time after interval
+    #   backup_interval: "-1" # Backup is disabled. It wil never run. Any previous folder changes wil not be submitted to the destination.
+      backup_interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+    #   backup_interval: "1h" # If interval > 0 then backup runs every interval
       enabled: true
     - name: "test cloud to e2"
       monitor_path: "D:/Cloud/Test/Test2"
       base_path: "Cloud"
       destination_path: "e2:test-foldermonitor/Cloud"
       copy_mode: "sync" 
-      # backup_interval: "" # Backup Disabled
-      # backup_interval: "0" # Backup runs once only immediately after start
-      # backup_interval: "1m" # If interval > 0 then backup runs every time after interval
-      enabled: false
+    #   backup_interval: "-1" # Backup is disabled. It wil never run. Any previous folder changes wil not be submitted to the destination.
+      backup_interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+    #   backup_interval: "1h" # If interval > 0 then backup runs every interval
+      enabled: true
    
