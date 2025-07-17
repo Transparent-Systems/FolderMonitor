@@ -116,18 +116,18 @@ class RcloneHandler:
                 # The --s3-no-check-bucket flag handles the use case where the user has no CreateBucket permissions
                 rclone_command = [rclone_path, "copy", "--transfers", "16", source_folder, destination_path]
 
-
             try:
                 self.logger.debug(f"Running command: {' '.join(rclone_command)}")
                 result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
                 # Check if the command was successful
                 if result_process.returncode == 0:
-                    self.logger.debug("Command executed successfully")
+                    self.logger.debug(f"Command executed successfully: {' '.join(rclone_command)}")
                 else:
-                    self.logger.error(f"Error running command: {result_process.stderr}")
-
+                    self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+                    self.logger.error(f"Error details: {result_process.stderr}")
             except subprocess.CalledProcessError as e:
-                self.logger.error(f"Error running command: {e}")
+                self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+                self.logger.error(f"Error: {e}")
                 self.logger.error(e.stderr)
         else:   # If the source path is a file
             relative_path = self.__get_relative_folder(source_path, self.base_path)
@@ -143,13 +143,15 @@ class RcloneHandler:
                 result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
                 # Check if the command was successful
                 if result_process.returncode == 0:
-                    self.logger.debug("Command executed successfully")
+                    self.logger.debug(f"Command executed successfully: {' '.join(rclone_command)}")
                 else:
-                    self.logger.debug(f"Error running command: {e}")
-                    self.logger.debug(e.stderr)
+                    self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+                    self.logger.error(f"Error: {e}")
+                    self.logger.error(e.stderr)
             except subprocess.CalledProcessError as e:
-                self.logger.debug(f"Error running command: {e}")
-                self.logger.debug(e.stderr)
+                self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+                self.logger.error(f"Error: {e}")
+                self.logger.error(e.stderr)
                 self.__process_file_with_include(source_path)
 
     # Delete the file or folder at the destination path using rclone
@@ -189,12 +191,13 @@ class RcloneHandler:
 
             # Check if the command was successful
             if result_process.returncode == 0:
-                self.logger.debug("Command executed successfully")
+                self.logger.debug(f"Command executed successfully: {' '.join(rclone_command)}")
             else:
-                self.logger.debug(f"Error running command: {result_process.stderr}")
+                self.logger.error(f"Error details: {result_process.stderr}")
         except subprocess.CalledProcessError as e:
-            self.logger.debug(f"Error running command: {e}")
-            self.logger.debug(e.stderr)
+            self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+            self.logger.error(f"Error: {e}")
+            self.logger.error(e.stderr)
         
     def __process_file_with_include(self, source_path):
         #    Try to copy the file using rclone --include
@@ -210,9 +213,10 @@ class RcloneHandler:
             result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
             # Check if the command was successful
             if result_process.returncode == 0:
-                self.logger.debug("Command executed successfully")
+                self.logger.debug(f"Command executed successfully: {' '.join(rclone_command)}")
             else:
-                self.logger.debug(f"Error running command: {result_process.stderr}")
+                self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+                self.logger.error(f"Error details: {result_process.stderr}")
         except subprocess.CalledProcessError as e:
-            self.logger.debug(f"Error running command: {e}")
-            self.logger.debug(e.stderr)
+            self.logger.error(f"Error: {e}")
+            self.logger.error(e.stderr)
