@@ -426,21 +426,8 @@ if __name__ == "__main__":
 
 
     # BEGIN: backups
-    if script_has_crashed:
-        logger.debug(f"--- CRASH PID DETECTED: {CRASH_PID_FILE} --- ")
-    else:
-        logger.debug("--- No crash PID detected. ---")
-
     active_threads = []
-
-    monitor_paths = set()
     for monitor in monitors:
-        #     # Do not trigger a backup for the same monitor_folder twice
-        if monitor.get("monitor_path") in monitor_paths:
-            continue
-
-        monitor_paths.add(monitor.get("monitor_path"))
-
         # Only run backup if monitor is enabled
         if monitor.get("enabled", True): # Default to enabled if not specified
             thread = threading.Thread(
