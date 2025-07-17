@@ -154,6 +154,7 @@ class RcloneHandler:
                 self.logger.error(e.stderr)
                 self.__process_file_with_include(source_path)
 
+
     # Delete the file or folder at the destination path using rclone
     def delete(self, source_path, is_directory=False):
         """

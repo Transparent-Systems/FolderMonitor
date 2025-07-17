@@ -112,32 +112,47 @@ def parse_time_string(time_str, default_value=None):
         return default_value # Handles unparseable strings
 
 # Perform backup
-def perform_backup(monitor_config, rclone_handler, reason="scheduled"):
+def perform_backup(monitor_config, reason="scheduled"):
     monitor_name = monitor_config["name"]
     logger.debug(f"Performing {reason} backup for monitor [{monitor_name}] at {time.ctime()} for: {monitor_config['monitor_path']} -> {monitor_config['destination_path']}")
     # Use rclone_handler for backup operations
-    # This will also trigger and event for all files backed up in the corresponding monitor
-    # That is expected behaviour of rclone_handler.copy()
-    # The monitor needs to run while backup is running in order to handle events
+    # Check if backup copy_mode is copy or sync
+    backup_config = monitor_config.get("backup", {})
+    copy_mode = backup_config.get("copy_mode", "copy")  # Default to "copy" if not specified
+
+    if copy_mode not in ["copy", "sync"]:
+        logger.debug(f"Invalid copy_mode '{copy_mode}' for monitor '{monitor_name}'. Defaulting to 'copy'.")
+        copy_mode = "copy"
+
+    destination_path = monitor_config.get("destination_path")
+    base_path = monitor_config.get("base_path", "")
+    rclone_handler = RcloneHandler(destination_path, base_path, copy_mode, logger)
     rclone_handler.copy(
         source_path=monitor_config["monitor_path"],
-        is_directory=True,  # Assuming monitor_path is a directory
+        is_directory=True,  # Monitor_path is a directory
     )
+
+    rclone_handler = None # Clean up the rclone handler
+
 
 # This is the function that each thread will execute
 def monitor_backup_task(monitor_config, is_crash_recovery=False):
     monitor_name = monitor_config["name"]
-    raw_interval = monitor_config.get("backup_interval", None)  # Default to None if not specified
+    backup_config = monitor_config.get("backup", {})
+    if not backup_config:
+        logger.debug(f"No backup configuration found for {monitor['name']}")
+        return  # Exit if no backup configuration is present
+    
+    if backup_config.get("enabled", True) is False:
+        logger.debug(f"Backup for monitor '{monitor_name}' is disabled. Skipping backup task.")
+        return  # Exit if backup is explicitly disabled
+    
+    backup_copy_mode = backup_config.get("copy_mode", "copy")  # Default to "copy" if not specified
+    raw_interval = backup_config.get("interval", "0")  # Default to "0" if not specified
     interval_seconds = parse_time_string(raw_interval,0)  # Default to 0 if parsing fails
-
-    destination_path = monitor_config.get("destination_path")
-    base_path = monitor_config.get("base_path", "")
-    copy_mode = monitor_config.get("copy_mode", "copy") # Default to "copy"
-    rclone_handler = RcloneHandler(destination_path, base_path, copy_mode, logger)
 
     # Determine the effective interval and corresponding behavior
     # The logic for determining the backup interval is as follows:
-    # - If the interval is negative, no backup will be performed.
     # - If the interval is None or 0, a one-off backup will be performed immediately.
     # - If the interval is positive, a recurring backup will be performed at the specified interval.
     # Check for None first to avoid TypeError when comparing with integers
@@ -148,19 +163,13 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
 
     if  interval_seconds == 0:
         logger.debug(f"[{monitor_name}] Backup interval is 0. Performing one-off backup.")
-        perform_backup(monitor_config, rclone_handler, reason="one-off (interval 0)")
-        rclone_handler = None # Clean up the rclone handler
+        perform_backup(monitor_config, reason="one-off (interval 0)")
         return # Exit the thread after one-off backup
-    elif interval_seconds < 0:
-        logger.debug(f"[{monitor_name}] Backup interval is negative ('{raw_interval}'). No backup will be performed.")
-        rclone_handler = None # Clean up the rclone handler
-        return # Exit the thread if no valid interval for recurring backup
     else:
-        logger.debug(f"[{monitor_name}] Monitor started. Next scheduled backup in {interval_seconds} seconds.")
-        # No immediate backup. The first backup will occur after the initial delay.
+        logger.debug(f"[{monitor_name}] BAckup scheduled every {interval_seconds} seconds.")
         # This loop will run indefinitely for recurring backups
         while True:
-            perform_backup(monitor_config, rclone_handler, reason="scheduled")
+            perform_backup(monitor_config, reason="scheduled")
             time.sleep(interval_seconds)
 
 
@@ -428,18 +437,15 @@ if __name__ == "__main__":
     # BEGIN: backups
     active_threads = []
     for monitor in monitors:
-        # Only run backup if monitor is enabled
-        if monitor.get("enabled", True): # Default to enabled if not specified
-            thread = threading.Thread(
-                target=monitor_backup_task,
-                args=(monitor, script_has_crashed), # Pass crash recovery flag
-                daemon=True
-            )
-            thread.start()
-            active_threads.append(thread)
-            logger.debug(f"Initiated processing for monitor: {monitor['name']}")
-        else:
-            logger.debug(f"Monitor '{monitor['name']}' is explicitly disabled.")
+        # Backup runs if backup is enabled, regardless if monitor enabled or not
+        thread = threading.Thread(
+            target=monitor_backup_task,
+            args=(monitor, ), # Trailing "," requireed as args expects an Iterable
+            daemon=True
+        )
+        thread.start()
+        logger.debug(f"Initiated backup processing for monitor: {monitor['name']}")
+        active_threads.append(thread)
 
     logger.debug("All monitor backup threads initiated.")
     # END: backups
