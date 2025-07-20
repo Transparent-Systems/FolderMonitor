@@ -126,11 +126,18 @@ def perform_backup(monitor_config, reason="scheduled"):
 
     destination_path = monitor_config.get("destination_path")
     base_path = monitor_config.get("base_path", "")
-    rclone_handler = RcloneHandler(destination_path, base_path, copy_mode, logger)
-    rclone_handler.copy(
-        source_path=monitor_config["monitor_path"],
-        is_directory=True,  # Monitor_path is a directory
-    )
+    rclone_handler = RcloneHandler(destination_path, base_path, logger)
+
+    if copy_mode == "sync":
+        logger.debug(f"Syncing folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")
+        rclone_handler.sync_folder(
+            source_path=monitor_config["monitor_path"]
+        )
+    else:  # Default to "copy"
+        logger.debug(f"Copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")
+        rclone_handler.copy_folder(
+            source_path=monitor_config["monitor_path"]
+        )
 
     rclone_handler = None # Clean up the rclone handler
 
@@ -223,24 +230,71 @@ class MyEventHandler(FileSystemEventHandler):
         self.logger.debug("MyEventHandler initialized")
        
     def on_created(self, event):
-        self.logger.info(f"on_created: {event.src_path}, event.is_directory: {event.is_directory}")
-        self.rclone_handler.copy(event.src_path, event.is_directory)
+        if event.is_directory:
+            # If the event is a directory creation, we copy the entire folder
+            self.logger.info(f"on_created: copying folder '{event.src_path}'")
+            self.rclone_handler.copy_folder(event.src_path)
+        else:
+            # If the event is a file creation, we copy the specific file
+            self.logger.debug(f"on_created: copying file '{event.src_path}'")
+            self.rclone_handler.copy_file(event.src_path)
+
 
     def on_deleted(self, event):
-        self.logger.info(f"on_deleted: {event.src_path}, event.is_directory: {event.is_directory}")
-        self.rclone_handler.delete(event.src_path, event.is_directory)
+        self.logger.info(f"on_deleted: src_path='{event.src_path}'") 
+        if event.is_directory:
+            # If the event is a directory deletion, we delete the entire folder
+            # This may never happen as watchdog does trigger a FileDeletedEvent for directories
+            self.rclone_handler.delete_folder(event.src_path)
+        else:
+            # If the event is a file deletion, we delete the specific file
+            (return_code, return_output)  = self.rclone_handler.delete_file(event.src_path)
+            # Watchdog can trigger a FileDeletedEvent for a directory if its contents change,
+            # so we log the return code for debugging purposes
+            # If the return code is 0, the file was successfully deleted
+            if return_code == 0:
+                return
+            
+            # watchdog can trigger a FileDeletedEvent for a directory if the directory is deleted
+            # so we log the return code for debugging purposes
+            self.logger.debug(f"on_deleted: failed to delete {event.src_path}, return code: {return_code}")
+            # Watchdog trigger FileDeletedEvent for deleted folder, so delete folder here.
+            self.logger.debug(f"on_deleted: delete folder '{event.src_path}'")
+            self.rclone_handler.delete_folder(event.src_path)
+
 
     def on_modified(self, event):
-        self.logger.info(f"on_modified: {event.src_path}, event.is_directory: {event.is_directory}")
-        self.rclone_handler.copy(event.src_path, event.is_directory)
+        """
+        Handles file modification events.
+        We have filtered out DirModifiedEvent noise (like access_time changes) by checking if the path is a directory.
+        So we whoud not receive DirModifiedEvent events here.
+        However, a file is removed from a folder, then wathdog triggerFileModifiedEvent on the folder of that file.
+        So, we check if the path exist, if not, then skip further processing
+        """
+
+        if not os.path.exists(event.src_path):
+            # Watchdog triggered FileModifiedEvent event on folder
+            return
+
+        self.logger.info(f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}")
+        self.rclone_handler.copy_file(event.src_path)
 
     def on_moved(self, event):
         self.logger.info(f"on_moved - renamed from {event.src_path} to {event.dest_path}")
-        self.rclone_handler.delete(event.src_path, event.is_directory)
-        self.rclone_handler.copy(event.dest_path, event.is_directory)
+
+        if event.is_directory:
+            # Remove src_path (old folder) from remote
+            self.rclone_handler.delete_folder(event.src_path)
+            # Copy dest_path (new folder) to remote
+            self.rclone_handler.copy_folder(event.dest_path)
+        else:
+            # Remove src_path (old file) from remote
+            self.rclone_handler.delete_file(event.src_path)
+            # Copy dest_path (new file) to remote
+            self.rclone_handler.copy_file(event.dest_path)
 
     def __del__(self):
-        self.logger.info("Event handler closed")
+        self.logger.debug("Event handler closed")
         self.rclone_handler = None
 
 
@@ -258,10 +312,6 @@ class MonitorHandler:
         self.monitor_running = False        
         self.observer = None
         # # Create LoggingHandler instance
-        # self.logging_handler = LoggingHandler(
-        #     log_config=log_config,
-        # )
-
         self.logger = get_unique_logger(log_config)
 
         if monitor_config.get('enabled') is False:
@@ -281,14 +331,14 @@ class MonitorHandler:
             raise ValueError("destination_path is required in the monitor configuration.")
         
         self.base_path = monitor_config.get('base_path', '')
-        self.copy_mode = monitor_config.get('copy_mode', 'copy')
+        self.copy_mode = monitor_config.get('copy_mode', 'sync')  # Default to 'sync' if not specified
         self.monitor_running = True
         self.logger.debug("MonitorHandler: exiting __init__")
 
 
     def start_monitor(self):
         """Start monitoring the specified folder for changes."""
-        rclone_handler = RcloneHandler(self.destination_path, self.base_path, self.copy_mode, self.logger)
+        rclone_handler = RcloneHandler(self.destination_path, self.base_path, self.logger)
         event_handler = MyEventHandler(rclone_handler, self.logger)
         self.observer = Observer()
 
@@ -304,14 +354,14 @@ class MonitorHandler:
             DirCreatedEvent,
             DirDeletedEvent,
             DirMovedEvent,
+            # DirModifiedEvent, # <--- DO NOT INCLUDE THIS IF YOU WANT TO FILTER OUT FOLDER ACCESS CHANGES
             # IMPORTANT: Exclude DirModifiedEvent if you don't want folder access_time changes
             # or other non-content directory modifications to trigger on_modified.
             # If you uncomment the next line, DirModifiedEvent will be included.
             # DirModifiedEvent, # <--- DO NOT INCLUDE THIS IF YOU WANT TO FILTER OUT FOLDER ACCESS CHANGES
         ]
 
-        self.observer.schedule(event_handler, self.monitor_path, recursive=True,
-                               event_filter=event_types_to_monitor)
+        self.observer.schedule(event_handler, self.monitor_path, recursive=True, event_filter=event_types_to_monitor)
         # self.observer.schedule(event_handler, self.monitor_path, recursive=True)
         self.observer.start()
         self.logger.info(f"Observer {self.observer.name} started on folder {self.monitor_path}")
@@ -332,14 +382,12 @@ if __name__ == "__main__":
     parser.add_argument("--monitor-config-path", type=str, help="Path of monitor configuration file. Default is conf/monitor.yaml", default="conf/monitor.yaml")
     args = parser.parse_args()
 
-
     # Load configuration from the monitor config file
     config_handler = ConfigHandler(args.monitor_config_path)
     log_config = config_handler.get_config("logging")
     if log_config is None:
         print(f"Configuration for 'folder_monitor' not found in {args.monitor_config_path}.")
         sys.exit(1)
-
 
     # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
     log_queue = queue.Queue(-1)

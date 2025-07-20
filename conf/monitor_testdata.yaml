@@ -23,33 +23,13 @@ monitors:
     #               sync will delete files in destination_path that are not in source folder. 
     #               copy will not delete files in destination_path that are not in source folder.
     
-    - name: "cloud to drive"
+    - name: "testdata source and destination"
       enabled: true
       monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test1"
       base_path: "Cloud"
-      destination_path: "drive:test-foldermonitor/Cloud"
+      destination_path: "D:/Development/FolderMonitor/data/Destination/Cloud"
       backup:
         enabled: false
         interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
         copy_mode: "copy"
-
-    - name: "cloud to e2"
-      enabled: true
-      monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test2"
-      base_path: "Cloud"
-      destination_path: "e2:test-foldermonitor/Cloud"
-      backup:
-        enabled: false
-        interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-        copy_mode: "copy"
-   
-    # - name: "cloud to e2 versioned"
-    #   enabled: true
-    #   monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test2"
-    #   base_path: "Cloud"
-    #   destination_path: "e2:test-foldermonitor-versioned/Cloud"
-    #   backup:
-    #     enabled: false
-    #     interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-    #     copy_mode: "copy"
    
