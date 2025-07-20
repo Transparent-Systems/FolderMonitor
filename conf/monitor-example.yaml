@@ -37,7 +37,7 @@ monitors:
       destination_path: "D:/Development/FolderMonitor/data/Destination/Cloud/Test1"
       backup:
         enabled: false
-        interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+        interval: "0"
         copy_mode: "copy"
 
     - name: "cloud to drive"
@@ -47,7 +47,7 @@ monitors:
       destination_path: "drive:test-foldermonitor/Cloud"
       backup:
         enabled: false
-        interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+        interval: "0"
         copy_mode: "copy"
 
     - name: "cloud to e2"
@@ -57,7 +57,7 @@ monitors:
       destination_path: "e2:test-foldermonitor/Cloud"
       backup:
         enabled: true
-        interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+        interval: "0"
         copy_mode: "copy"
    
 
