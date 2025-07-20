@@ -1,3 +1,5 @@
+version: 1.0
+
 logging:
     log_file_name: folder_monitor.log
     log_folder: logs

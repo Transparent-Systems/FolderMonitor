@@ -1,3 +1,5 @@
+version: 1.0
+
 logging:
     log_file_name: folder_monitor.log
     log_folder: logs
@@ -11,31 +13,46 @@ monitors:
     # These are the folder monitors that will be started
     # If backup_interval >= 0 this will trigger a folder backup besides the running folder monitor
     # - name: "monitor name"
+    #   enabled: "true | false" # if true, the monitor will be started
     #   monitor_path: "folder to monitor"
     #   base_path: "path after base_path in monitor_path will be added to destination_path"
     #   destination_path: "cloud storage, local folder or shared folder"
-    #   copy_mode: "sync | copy" # sync will delete files in destination_path that are not in source folder
-    #   backup_interval: #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one-off backup. Negative means no backup.
-    #   backup_interval: "-1" # Backup is disabled. It wil never run. Any previous folder changes wil not be submitted to the destination.
-    #   backup_interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-    #   backup_interval: "1h" # If interval > 0 then backup runs every interval
-    #   enabled: "true | false" # if true, the monitor will be started
-    - name: "test cloud to drive"
-      monitor_path: "D:/Cloud/Test/Test1"
+    # backup:
+    #   enabled: true | false # if true, the backup will be started
+    #   interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+    #                 #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one-off backup.
+    #   copy_mode: "sync | copy" 
+    #               sync will delete files in destination_path that are not in source folder. 
+    #               copy will not delete files in destination_path that are not in source folder.
+    
+    - name: "cloud to local drive"
+      enabled: false
+      monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test1"
+      base_path: "Cloud"
+      destination_path: "D:/Development/FolderMonitor/data/Destination/Cloud/Test1"
+      backup:
+        enabled: false
+        interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+        copy_mode: "copy"
+
+    - name: "cloud to drive"
+      enabled: false
+      monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test1"
       base_path: "Cloud"
       destination_path: "drive:test-foldermonitor/Cloud"
-      copy_mode: "sync" 
-    #   backup_interval: "-1" # Backup is disabled. It wil never run. Any previous folder changes wil not be submitted to the destination.
-      backup_interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-    #   backup_interval: "1h" # If interval > 0 then backup runs every interval
+      backup:
+        enabled: false
+        interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+        copy_mode: "copy"
+
+    - name: "cloud to e2"
       enabled: true
-    - name: "test cloud to e2"
-      monitor_path: "D:/Cloud/Test/Test2"
+      monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test2"
       base_path: "Cloud"
       destination_path: "e2:test-foldermonitor/Cloud"
-      copy_mode: "sync" 
-    #   backup_interval: "-1" # Backup is disabled. It wil never run. Any previous folder changes wil not be submitted to the destination.
-      backup_interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-    #   backup_interval: "1h" # If interval > 0 then backup runs every interval
-      enabled: true
+      backup:
+        enabled: true
+        interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+        copy_mode: "copy"
    
+

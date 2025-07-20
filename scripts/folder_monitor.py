@@ -389,7 +389,7 @@ if __name__ == "__main__":
         print(f"Configuration for 'folder_monitor' not found in {args.monitor_config_path}.")
         sys.exit(1)
 
-    # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
+        # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
     log_queue = queue.Queue(-1)
 
     LOG_FILE = log_config.get('log_file', 'folder_monitor.log')
@@ -450,6 +450,8 @@ if __name__ == "__main__":
     # # Get a unique logger instance
     logger = get_unique_logger(log_config)
     logger.debug(f"folder_monitor: setup logging ready. Log level: {log_config.get('log_level', 'INFO').upper()}")
+    log_version = config_handler.get_config("version")
+    logger.debug(f"Configuration version: {log_version}")
 
     # --- Configuration for PID file ---
     CRASH_PID_FILE = "pid/crash_pid.txt"
@@ -483,6 +485,7 @@ if __name__ == "__main__":
 
 
     # BEGIN: backups
+    logger.debug("Begin processing backups")
     active_threads = []
     for monitor in monitors:
         # Backup runs if backup is enabled, regardless if monitor enabled or not
