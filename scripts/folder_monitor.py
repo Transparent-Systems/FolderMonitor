@@ -173,7 +173,7 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
         perform_backup(monitor_config, reason="one-off (interval 0)")
         return # Exit the thread after one-off backup
     else:
-        logger.debug(f"[{monitor_name}] BAckup scheduled every {interval_seconds} seconds.")
+        logger.debug(f"[{monitor_name}] Backup scheduled every {interval_seconds} seconds.")
         # This loop will run indefinitely for recurring backups
         while True:
             perform_backup(monitor_config, reason="scheduled")
