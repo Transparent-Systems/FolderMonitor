@@ -105,7 +105,7 @@ def parse_time_string(time_str, default_value=None):
         elif time_str.endswith('d'):
             value = int(time_str[:-1]) * 86400
         else:
-            value = int(time_str) # Allow raw numbers (e.g., "30" for 30 seconds)
+            value = default_value
 
         return value
     except ValueError:
@@ -172,13 +172,17 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
         logger.debug(f"[{monitor_name}] Backup interval is 0. Performing one-off backup.")
         perform_backup(monitor_config, reason="one-off (interval 0)")
         return # Exit the thread after one-off backup
-    else:
-        logger.debug(f"[{monitor_name}] Backup scheduled every {interval_seconds} seconds.")
-        # This loop will run indefinitely for recurring backups
-        while True:
-            perform_backup(monitor_config, reason="scheduled")
-            time.sleep(interval_seconds)
-
+    
+    one_hour = parse_time_string("1h")
+    if interval_seconds < one_hour:
+        logger.info (f"Minimum backup interval is one hour: {one_hour} seconds")
+        interval_seconds = one_hour
+    
+    logger.debug(f"[{monitor_name}] Backup scheduled every {interval_seconds} seconds.")
+    # This loop will run indefinitely for recurring backups
+    while True:
+        perform_backup(monitor_config, reason="scheduled")
+        time.sleep(interval_seconds)
 
 
 # Create a unique logger instance with a name based on UUID import uuid
