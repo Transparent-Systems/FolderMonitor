@@ -38,3 +38,13 @@ monitors:
         interval: "0" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
         copy_mode: "copy"
    
+    - name: "Videos"
+      enabled: true
+      monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Videos"
+      base_path: "Cloud"
+      destination_path: "D:/Development/FolderMonitor/data/Destination/Cloud"
+      backup:
+        enabled: false
+        interval: "0s"
+        copy_mode: "copy"
+   

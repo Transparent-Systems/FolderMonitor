@@ -236,12 +236,10 @@ class MyEventHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             # If the event is a directory creation, we copy the entire folder
-            self.logger.info(f"on_created: copying folder '{event.src_path}'")
-            self.rclone_handler.copy_folder(event.src_path)
+            self.logger.info(f"on_created: folder '{event.src_path}'; create postponed to on_modified event")
         else:
             # If the event is a file creation, we copy the specific file
-            self.logger.debug(f"on_created: copying file '{event.src_path}'")
-            self.rclone_handler.copy_file(event.src_path)
+            self.logger.debug(f"on_created: file '{event.src_path}'; create postponed to on_modified event")
 
 
     def on_deleted(self, event):
@@ -396,7 +394,7 @@ if __name__ == "__main__":
         # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
     log_queue = queue.Queue(-1)
 
-    LOG_FILE = log_config.get('log_file', 'folder_monitor.log')
+    LOG_FILE = log_config.get('log_file_name', 'folder_monitor.log')
     LOG_FOLDER = log_config.get('log_folder', 'logs')
     MAX_BYTES = log_config.get('max_bytes', 10 * 1024 * 1024)  # Default to 10 MB
     BACKUP_COUNT = log_config.get('backup_count', 5)  # Default to
