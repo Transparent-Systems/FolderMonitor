@@ -462,8 +462,8 @@ if __name__ == "__main__":
     # # Get a unique logger instance
     logger = get_unique_logger(log_config)
     logger.debug(f"folder_monitor: setup logging ready. Log level: {log_config.get('log_level', 'INFO').upper()}")
-    log_version = config_handler.get_config("version")
-    logger.debug(f"Configuration version: {log_version}")
+    config_version = config_handler.get_config("version")
+    logger.debug(f"Configuration version: {config_version}")
 
     # --- Configuration for PID file ---
     CRASH_PID_FILE = "pid/crash_pid.txt"

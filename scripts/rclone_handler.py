@@ -141,6 +141,17 @@ class RcloneHandler:
             return ""
 
 
+    def get_rclone_version(self):
+        rclone_command = [rclone_path, "--version"]
+        return self._run_command(rclone_command)
+    
+    def list_remotes(self):
+        """
+            List remotes configured
+        """
+        rclone_command = [rclone_path, "listremotes"]
+        return self._run_command(rclone_command)
+    
     def copy_file(self, source_path):
         """
         Copy source_path to the destination path
