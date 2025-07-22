@@ -126,7 +126,8 @@ def perform_backup(monitor_config, reason="scheduled"):
 
     destination_path = monitor_config.get("destination_path")
     base_path = monitor_config.get("base_path", "")
-    rclone_handler = RcloneHandler(destination_path, base_path, logger)
+    rclone_flags = monitor_config.get("rclone_flags", "")
+    rclone_handler = RcloneHandler(destination_path, base_path, logger, rclone_flags)
 
     if copy_mode == "sync":
         logger.debug(f"Syncing folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")
@@ -147,14 +148,13 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
     monitor_name = monitor_config["name"]
     backup_config = monitor_config.get("backup", {})
     if not backup_config:
-        logger.debug(f"No backup configuration found for {monitor['name']}")
+        logger.debug(f"No backup configuration found for '{monitor_name}'")
         return  # Exit if no backup configuration is present
     
     if backup_config.get("enabled", True) is False:
         logger.debug(f"Backup for monitor '{monitor_name}' is disabled. Skipping backup task.")
         return  # Exit if backup is explicitly disabled
     
-    backup_copy_mode = backup_config.get("copy_mode", "copy")  # Default to "copy" if not specified
     raw_interval = backup_config.get("interval", "0")  # Default to "0" if not specified
     interval_seconds = parse_time_string(raw_interval,0)  # Default to 0 if parsing fails
 
@@ -334,13 +334,14 @@ class MonitorHandler:
         
         self.base_path = monitor_config.get('base_path', '')
         self.copy_mode = monitor_config.get('copy_mode', 'sync')  # Default to 'sync' if not specified
+        self.rclone_flags = monitor_config.get('rclone_flags', '"--transfers, 4, --s3-no-check-bucket') 
         self.monitor_running = True
         self.logger.debug("MonitorHandler: exiting __init__")
 
 
     def start_monitor(self):
         """Start monitoring the specified folder for changes."""
-        rclone_handler = RcloneHandler(self.destination_path, self.base_path, self.logger)
+        rclone_handler = RcloneHandler(self.destination_path, self.base_path, self.logger, self.rclone_flags)
         event_handler = MyEventHandler(rclone_handler, self.logger)
         self.observer = Observer()
 

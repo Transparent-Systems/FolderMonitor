@@ -49,12 +49,16 @@ class RcloneHandler:
         base_path (str): The base path of the source_path. Path after base_path is appended to the destination_path.
     """
 
-    def __init__(self, destination_path, base_path="", logger=None):
+    def __init__(self, destination_path, base_path="", logger=None, rclone_flags=''):
         self.logger = logger
         self.destination_path = destination_path.replace("\\", "/")    # Ensure forward slashes for compatibility with rclone
         self.destination_path = self.destination_path.rstrip("/") # Ensure no trailing slash
         self.base_path = base_path.replace("\\", "/") # Ensure forward slashes for compatibility with rclone   
         self.base_path = self.base_path.rstrip("/") # Ensure no trailing slash
+        # rclone_flags is comma delmited string of keys and/or values
+        self.rclone_flags = []
+        for _ in rclone_flags.split(","):
+            self.rclone_flags.append(_.strip())
        
     def _get_relative_path(self, path, token):
         path = path.replace("\\", "/")
@@ -100,7 +104,12 @@ class RcloneHandler:
             self.logger.error(f"Error: {e}")
             self.logger.error(e.stderr)
             return (e.returncode, e.stderr.strip())
-        
+
+    def _build_rclone_command(self, rclone_command=[]):
+        for _ in self.rclone_flags:
+            rclone_command.append(_)
+        return rclone_command
+
     def get_path_as_json(self, destination_path, max_depth=1):
         """
         Get the path in JSON format for the destination path.
@@ -142,9 +151,12 @@ class RcloneHandler:
         destination_path = self.destination_path + relative_path
         # copyto can fail if the file has been deleted at the destination on a versioned file system
         # The --s3-no-check-bucket flag handles the use case where the user has no CreateBucket permissions 
-        # If copyto fails we fall back to sync            
-        rclone_command = [rclone_path, "copyto", "--transfers", "16", "--s3-no-check-bucket", source_path, destination_path]
+        # rclone_command = [rclone_path, "copyto", "--transfers", "16", "--s3-no-check-bucket", source_path, destination_path]
+        # rclone_parameters = "--transfers 16", "--s3-no-check-bucket"]
+
+        rclone_command = self._build_rclone_command([rclone_path, "copyto", source_path, destination_path])
         (return_value, result_output) = self._run_command(rclone_command)
+
         if return_value == 0:
             return
 
@@ -168,12 +180,9 @@ class RcloneHandler:
         relative_folder = self._get_relative_path(source_path, self.base_path)
         destination_path = self.destination_path + relative_folder
 
-        # Use rclone copy to copy the folder and its contents
+        # Copy the folder contents
         # This will not delete files at the destination that are not present in the source
-        # The --transfers flag allows multiple transfers to run in parallel
-        # This is useful for large folders with many files
-        # The --s3-no-check-bucket flag handles the use case where the user has no CreateBucket permissions
-        rclone_command = [rclone_path, "copy", "--transfers", "16", source_path, destination_path]
+        rclone_command = self._build_rclone_command([rclone_path, "copy", source_path, destination_path])
         return self._run_command(rclone_command)
 
     def sync_folder(self, source_path):
@@ -191,7 +200,7 @@ class RcloneHandler:
         destination_path = self.destination_path + relative_folder
 
         # Use rclone sync to ensure the destination is an exact copy of the source
-        rclone_command = [rclone_path, "sync", "--transfers", "16", source_folder, destination_path]
+        rclone_command = self._build_rclone_command([rclone_path, "sync", source_path, destination_path])
         return self._run_command(rclone_command)
     
 
@@ -209,7 +218,7 @@ class RcloneHandler:
         # We use rclone delete (instead of deletefile) as it also works when file does not exist on destination_path
         # This could happen is DirDeleteEvent is triggered before FileDeleteEvent
         # Using rclone delete reduces noise in the log
-        rclone_command = [rclone_path, "delete", "--transfers", "16", destination_path]
+        rclone_command = self._build_rclone_command([rclone_path, "delete", destination_path])
         return self._run_command(rclone_command)
 
 
@@ -221,11 +230,12 @@ class RcloneHandler:
             source_path (str): The path to the destination folder to be deleted.
         """
 
+
         source_path = source_path.replace("\\", "/")
         relative_folder = self._get_relative_path(source_path, self.base_path)
         destination_path = self.destination_path + relative_folder
         # rclone delete is safer than purge
-        rclone_command = [rclone_path, "delete", "--rmdirs", "--transfers", "16", destination_path]
+        rclone_command = self._build_rclone_command([rclone_path, "delete", "--rmdirs", destination_path])
         return self._run_command(rclone_command)
 
        

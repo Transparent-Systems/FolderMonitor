@@ -4,9 +4,9 @@ __pycache__/
 # Project-specific files
 # Ignore all files in the following directories
 backup_scripts
+data
 docs_temp
 example_scripts
-test_scripts
 logs
 pid
 
