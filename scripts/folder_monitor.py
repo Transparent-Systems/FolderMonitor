@@ -47,7 +47,7 @@ import uuid
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from watchdog.events import FileSystemEvent, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirCreatedEvent, DirDeletedEvent, DirMovedEvent, DirModifiedEvent # Import DirModifiedEvent specifically
+from watchdog.events import FileSystemEvent, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirCreatedEvent, DirDeletedEvent, DirMovedEvent, DirModifiedEvent, FileClosedEvent
 from rclone_handler import RcloneHandler
 
 
@@ -229,6 +229,7 @@ class MyEventHandler(FileSystemEventHandler):
     """
 
     def __init__(self, rclone_handler, logger=None):
+        super().__init__()
         self.rclone_handler = rclone_handler
         self.logger = logger if logger else logging.getLogger(__name__)
         self.logger.debug("MyEventHandler initialized")
@@ -269,8 +270,8 @@ class MyEventHandler(FileSystemEventHandler):
         """
         Handles file modification events.
         We have filtered out DirModifiedEvent noise (like access_time changes) by checking if the path is a directory.
-        So we whoud not receive DirModifiedEvent events here.
-        However, a file is removed from a folder, then wathdog triggerFileModifiedEvent on the folder of that file.
+        So we shoud not receive DirModifiedEvent events here.
+        However, a file is removed from a folder, then wathdog triggers a FileModifiedEvent on the folder of that file.
         So, we check if the path exist, if not, then skip further processing
         """
 
@@ -280,6 +281,14 @@ class MyEventHandler(FileSystemEventHandler):
 
         self.logger.info(f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}")
         self.rclone_handler.copy_file(event.src_path)
+
+    def on_closed(self, event) -> None:
+        if not os.path.exists(event.src_path):
+            return
+
+        self.logger.info(f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}")
+        self.rclone_handler.copy_file(event.src_path)
+
 
     def on_moved(self, event):
         self.logger.info(f"on_moved - renamed from {event.src_path} to {event.dest_path}")
