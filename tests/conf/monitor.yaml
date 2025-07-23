@@ -1,0 +1,62 @@
+version: 1.0
+
+logging:
+  log_file_name: monitor_integration.log
+  log_folder: logs
+  # log_folder: C:/Apps/FolderMonitor/logs
+  log_max_file_size: 1000000
+  log_max_backup_count: 5
+  # log_level: debug | info | warning | error | critical
+  log_level: debug
+
+monitors:
+  # Important: On Windows, for monitor_path use forward slash "/" OR double backslash "\\"
+  # Good: C:/path/to/monitor
+  # Good: C:\\path\\to\\monitor
+  # Bad: C:\path\to\monitor
+  
+  # These are the folder monitors that will be started
+  # If backup_interval >= 0 this will trigger a folder backup besides the running folder monitor
+  # - name: "monitor name"
+  #   enabled: "true | false" # if true, the monitor will be started
+  #   monitor_path: "folder to monitor"
+  #   base_path: "path after base_path in monitor_path will be added to destination_path"
+  #   destination_path: "cloud storage, local folder or shared folder"
+  #   rclone_flags: "--transfers, 8, --s3-no-check-bucket" # Rclone flags are used to optimise performance or to handle features of remote storage
+  # backup:
+  #   enabled: true | false # if true, the backup will be started
+  #   interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+  #                 #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one-off backup.
+  #   copy_mode: "sync | copy" 
+  #               sync will delete files in destination_path that are not in source folder. 
+  #               copy will not delete files in destination_path that are not in source folder.
+  
+  # Example rclone flags
+  # --transfers: <int> Number of transfers, default is 4 
+  # --s3-no-check-bucket: The --s3-no-check-bucket flag handles the use case where the user running folder_monitor.py has no CreateBucket permission.
+  # --dry-run: This is for testing purposes only. Nothing will change in the remote storage
+  # Backend flags can be added to the rclone configuration as well. This is usually more convenient
+
+
+  - name: "local storage"
+    enabled: true
+    monitor_path: "data/Source/Cloud"
+    base_path: "Cloud"
+    destination_path: "data/Destination/Cloud"
+    rclone_flags: "--transfers, 4"
+    backup:
+      enabled: false
+      interval: "0s"
+      copy_mode: "copy"
+
+  - name: "cloud storage"
+    enabled: false
+    monitor_path: "data/Source/Cloud"
+    base_path: "Cloud"
+    destination_path: "e2:test-foldermonitor/Cloud"
+    rclone_flags: "--transfers, 8, --s3-no-check-bucket"
+    backup:
+      enabled: false
+      interval: "0s"
+      copy_mode: "copy"
+

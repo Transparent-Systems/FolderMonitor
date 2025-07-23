@@ -213,9 +213,7 @@ class ConfigHandler:
 
     def get_config(self, config_key):
         return self.config.get(config_key)
-  
-
-
+ 
 class MyEventHandler(FileSystemEventHandler):
     """
     A custom event handler that processes file system events and triggers rclone operations.
@@ -320,7 +318,7 @@ class MonitorHandler:
     def __init__(self, monitor_config, log_config):
         self.monitor_config = monitor_config
         self.log_config = log_config
-        self.monitor_running = False        
+        self.monitor_enabled = monitor_config.get("enabled")        
         self.observer = None
         # # Create LoggingHandler instance
         self.logger = get_unique_logger(log_config)
@@ -344,7 +342,6 @@ class MonitorHandler:
         self.base_path = monitor_config.get('base_path', '')
         self.copy_mode = monitor_config.get('copy_mode', 'sync')  # Default to 'sync' if not specified
         self.rclone_flags = monitor_config.get('rclone_flags', '"--transfers, 4, --s3-no-check-bucket') 
-        self.monitor_running = True
         self.logger.debug("MonitorHandler: exiting __init__")
 
 
@@ -398,7 +395,7 @@ if __name__ == "__main__":
     config_handler = ConfigHandler(args.monitor_config_path)
     log_config = config_handler.get_config("logging")
     if log_config is None:
-        print(f"Configuration for 'folder_monitor' not found in {args.monitor_config_path}.")
+        print(f"Configuration for 'logging' not found in {args.monitor_config_path}.")
         sys.exit(1)
 
         # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
@@ -486,7 +483,7 @@ if __name__ == "__main__":
             log_config=log_config,
         )
 
-        if not monitor_handler.monitor_running:
+        if not monitor_handler.monitor_enabled:
             logger.debug(f"Monitor {monitor['name']} is disabled. Skipping...")
             continue
 

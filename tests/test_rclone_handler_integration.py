@@ -29,56 +29,56 @@ def run_integration_check(src_path = "data/Source",destination_path = "data/Dest
     handler = RcloneHandler(destination_path, base_path, logger, rclone_flags)
 
     try:
-        # # Test 1: Get Version
-        # logger.debug("\n1. Getting Rclone Version...")
-        # (result_code, result_output) = handler.get_rclone_version()
-        # logger.debug(f"Rclone Version: {result_output}")
-        # assert "rclone" in result_output.lower()
+        # Test 1: Get Version
+        logger.debug("\n1. Getting Rclone Version...")
+        (result_code, result_output) = handler.get_rclone_version()
+        logger.debug(f"Rclone Version: {result_output}")
+        assert "rclone" in result_output.lower()
 
-        # # Test 2: List Remotes
-        # logger.debug("\n2. Listing Remotes...")
-        # (result_code, result_output) = handler.list_remotes()
-        # logger.debug(f"Configured Remotes:\n{result_output}")
-        # assert result_code == 0
+        # Test 2: List Remotes
+        logger.debug("\n2. Listing Remotes...")
+        (result_code, result_output) = handler.list_remotes()
+        logger.debug(f"Configured Remotes:\n{result_output}")
+        assert result_code == 0
 
-        # # Test 3: Copy a test file to a temporary location on the remote
-        # logger.debug(f"\n3. Copying a test file to '{test_remote}'...")
-        # file_path = f"{src_path}/Test1/Subfolder1/test1.txt"
-        # # handler is instantiated with destination_path. Method copy_file derives destination path from the src_path.
-        # # Path in scr_path after base_path is appended to destination path
-        # (result_code, result_output) = handler.copy_file(file_path)
-        # logger.debug(f"Copy_file output:\n{result_output}")
-        # assert result_code == 0
+        # Test 3: Copy a test file to destination
+        logger.debug(f"\n3. Copying a test file to '{test_remote}'...")
+        file_path = f"{src_path}/Test1/Subfolder1/test1.txt"
+        # handler is instantiated with destination_path. Method copy_file derives destination path from the src_path.
+        # Path in scr_path after base_path is appended to destination path
+        (result_code, result_output) = handler.copy_file(file_path)
+        logger.debug(f"Copy_file output:\n{result_output}")
+        assert result_code == 0
 
-        # # Test 4: Verify file existence on remote (using lsf)
-        # logger.debug("Verifying file on remote...")
-        # file_path = f"{src_path}/Test1/Subfolder1/test1.txt"
-        # dst_path = get_destination_path(file_path, base_path, destination_path)
-        # rclone_command = f"lsf, {dst_path}"
-        # (result_code, result_output) = handler.run_command(rclone_command)
-        # logger.debug(f"Remote content:\n{result_output}")
-        # file_name = os.path.basename(file_path)
-        # assert file_name in result_output
+        # Test 4: Verify file existence on remote (using lsf)
+        logger.debug("Verifying file on remote...")
+        file_path = f"{src_path}/Test1/Subfolder1/test1.txt"
+        dst_path = get_destination_path(file_path, base_path, destination_path)
+        rclone_command = f"lsf, {dst_path}"
+        (result_code, result_output) = handler.run_command(rclone_command)
+        logger.debug(f"Remote content:\n{result_output}")
+        file_name = os.path.basename(file_path)
+        assert file_name in result_output
 
-        # # Test 5: Create a new file
-        # logger.debug("Create a new file on remote...")
-        # file_path = create_test_data(src_path, "Test1/Subfolder1/test3.txt")
-        # (result_code, result_output) = handler.copy_file(file_path)
-        # logger.debug(f"Copy result code: {result_code}")
-        # assert result_code == 0
+        # Test 5: Create a new file
+        logger.debug("Create a new file on remote...")
+        file_path = create_test_data(src_path, "Test1/Subfolder1/test3.txt")
+        (result_code, result_output) = handler.copy_file(file_path)
+        logger.debug(f"Copy result code: {result_code}")
+        assert result_code == 0
 
-        # # Test 6: Emulate move file
-        # logger.debug("Move file ...")
-        # old_file_path = create_test_data(src_path, ["Test1/Subfolder1/test3.txt"])
-        # shutil.move(f"{src_path}/Test1/Subfolder1/test3.txt", f"{src_path}/Test1/Subfolder1/test3_moved.txt") 
-        # # Delete old file at destination
-        # (result_code, result_output) = handler.delete_file(old_file_path)
-        # assert result_code == 0  
+        # Test 6: Emulate move file
+        logger.debug("Move file ...")
+        old_file_path = create_test_data(src_path, ["Test1/Subfolder1/test3.txt"])
+        shutil.move(f"{src_path}/Test1/Subfolder1/test3.txt", f"{src_path}/Test1/Subfolder1/test3_moved.txt") 
+        # Delete old file at destination
+        (result_code, result_output) = handler.delete_file(old_file_path)
+        assert result_code == 0  
 
-        # # Create new file at destination
-        # (result_code, result_output) = handler.copy_file(f"{src_path}/Test1/Subfolder1/test3_moved.txt")
-        # logger.debug(f"Copy result code: {result_code}")
-        # assert result_code == 0
+        # Create new file at destination
+        (result_code, result_output) = handler.copy_file(f"{src_path}/Test1/Subfolder1/test3_moved.txt")
+        logger.debug(f"Copy result code: {result_code}")
+        assert result_code == 0
 
         # Test 7: Copy entire folder
         logger.debug("Copy entire folder to destination ...")
@@ -195,13 +195,13 @@ if __name__ == "__main__":
     )
     console_handler_real.setFormatter(formatter)
     root_logger.addHandler(console_handler_real)
-    root_logger.debug("Root logger configured with queue handler.")
+    root_logger.debug("Root logger configured with condole handler.")
     # --- End Central Logging Setup ---
  
     logger = logging.getLogger()
     logger.debug("Before calling run_integration_check")
     src_path = "data/Source/Cloud"
-    src_path = "D:/Development/FolderMonitor/data/Source/Cloud"
+    # src_path = "D:/Development/FolderMonitor/data/Source/Cloud"
     # destination path of cloud storage is in format: <remote>:<bucket>/path
     # Example destination path of local storage: D:/my/local/path or /my/local/path
     destination_path = "e2:test-foldermonitor/Cloud"
