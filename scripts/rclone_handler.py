@@ -56,9 +56,9 @@ class RcloneHandler:
         self.base_path = base_path.replace("\\", "/") # Ensure forward slashes for compatibility with rclone   
         self.base_path = self.base_path.rstrip("/") # Ensure no trailing slash
         # rclone_flags is comma delmited string of keys and/or values
-        self.rclone_flags = []
-        for _ in rclone_flags.split(","):
-            self.rclone_flags.append(_.strip())
+        self.rclone_flags = rclone_flags
+        # for _ in rclone_flags.split(","):
+        #     self.rclone_flags.append(_.strip())
        
     def _get_relative_path(self, path, token):
         path = path.replace("\\", "/")
@@ -77,16 +77,28 @@ class RcloneHandler:
         return return_path
 
     def _copy_file_with_include(self, source_path):
-        #    Try to copy the file using rclone copy --include
+        """
+        Copy file using rclone copy --include
+        """
         path_split = source_path.rsplit("/", 1)
         file_name = path_split[1]
         source_folder = path_split[0]
         relative_folder = self._get_relative_path(source_folder, self.base_path)
         destination_path = self.destination_path + relative_folder
-        rclone_command = [rclone_path, "copy", "--transfers", "16", source_folder, destination_path, "--include", file_name]
-        return self._run_command(rclone_command)
+        return self.run_command(["copy", source_folder, destination_path, "--include", file_name], self.rclone_flags)
 
-    def _run_command(self, rclone_command):
+    def run_command_old(self, rclone_command: list[str], additional_arguments=""):
+        """
+        Run rclone_command is a subprocess
+        Return tupe (result_code and result_output)
+        Param rclone_command: list of command parts
+        Param additional_arguments: comma delimited string
+        """
+
+        # Add additional_arguments to rclone_command
+        if additional_arguments and not additional_arguments.isspace():
+            for _ in additional_arguments.split(","):
+                rclone_command.append(_.strip())
 
         try:
             self.logger.debug(f"Running command: {' '.join(rclone_command)}")
@@ -94,63 +106,66 @@ class RcloneHandler:
             # Check if the command was successful
             if result_process.returncode == 0:
                 self.logger.debug(f"Command executed successfully: {' '.join(rclone_command)}")
+                return (result_process.returncode, result_process.stdout)
             else:
                 self.logger.error(f"Error running command: {' '.join(rclone_command)}")
                 self.logger.error(f"Error details: {result_process.stderr}")
-
-            return (0, result_process.stdout.strip())
+                return (result_process.returncode, result_process.stderr)
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Error running command: {' '.join(rclone_command)}")
             self.logger.error(f"Error: {e}")
             self.logger.error(e.stderr)
-            return (e.returncode, e.stderr.strip())
+            return (e.returncode, e.stderr)
 
-    def _build_rclone_command(self, rclone_command=[]):
-        for _ in self.rclone_flags:
-            rclone_command.append(_)
-        return rclone_command
-
-    def get_path_as_json(self, destination_path, max_depth=1):
+    def run_command(self, rclone_command_parms: list[str] | str, additional_arguments=""):
         """
-        Get the path in JSON format for the destination path.
-
-        Args:
-            destination_path (str): The path to the destination folder or file.
-
-        Returns:
-            str: The JSON formatted path.
+        Run rclone_command is a subprocess
+        Return tupe (result_code and result_output)
+        Param rclone_command: list or comma delimited string
+        Param additional_arguments: comma delimited string
         """
-        # The rclone lsjson command returns a JSON array of objects
-        # Each object contains the path, name, size, mimeType, modTime, and isDir attributes
-        # We use the --max-depth to limit the number of JSON objects
-        rclone_command = [rclone_path, "lsjson", "--max-depth", str(max_depth), destination_path]
+
+        # Add rclone executable
+        if isinstance(rclone_command_parms, str):
+            rclone_command_string = f"{rclone_path}, {rclone_command_parms}"
+            # Turn string into a list
+            rclone_command = []
+            for _ in rclone_command_string.split(","):
+                rclone_command.append(_.strip())
+        else:
+            rclone_command_parms.insert(0, rclone_path)
+            rclone_command = rclone_command_parms
+
+        # Add additional_arguments to rclone_command
+        if additional_arguments and not additional_arguments.isspace():
+            for _ in additional_arguments.split(","):
+                rclone_command.append(_.strip())
+
         try:
             self.logger.debug(f"Running command: {' '.join(rclone_command)}")
             result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
+            # Check if the command was successful
             if result_process.returncode == 0:
                 self.logger.debug(f"Command executed successfully: {' '.join(rclone_command)}")
-                return result_process.stdout
+                return (result_process.returncode, result_process.stdout)
             else:
                 self.logger.error(f"Error running command: {' '.join(rclone_command)}")
                 self.logger.error(f"Error details: {result_process.stderr}")
-                return ""
+                return (result_process.returncode, result_process.stderr)
         except subprocess.CalledProcessError as e:
             self.logger.error(f"Error running command: {' '.join(rclone_command)}")
             self.logger.error(f"Error: {e}")
             self.logger.error(e.stderr)
-            return ""
-
+            return (e.returncode, e.stderr)
 
     def get_rclone_version(self):
-        rclone_command = [rclone_path, "--version"]
-        return self._run_command(rclone_command)
+        return self.run_command("--version")
     
     def list_remotes(self):
         """
             List remotes configured
         """
-        rclone_command = [rclone_path, "listremotes"]
-        return self._run_command(rclone_command)
+        return self.run_command("listremotes")
     
     def copy_file(self, source_path):
         """
@@ -162,14 +177,13 @@ class RcloneHandler:
         destination_path = self.destination_path + relative_path
         # copyto can fail if the file has been deleted at the destination on a versioned file system
         # The --s3-no-check-bucket flag handles the use case where the user has no CreateBucket permissions 
-        # rclone_command = [rclone_path, "copyto", "--transfers", "16", "--s3-no-check-bucket", source_path, destination_path]
+        # rclone_command = ["copyto", "--transfers", "16", "--s3-no-check-bucket", source_path, destination_path]
         # rclone_parameters = "--transfers 16", "--s3-no-check-bucket"]
 
-        rclone_command = self._build_rclone_command([rclone_path, "copyto", source_path, destination_path])
-        (return_value, result_output) = self._run_command(rclone_command)
+        (return_value, result_output) = self.run_command(["copyto", source_path, destination_path], self.rclone_flags)
 
         if return_value == 0:
-            return
+            return (return_value, result_output)
 
         # rclone copyto can fail if a file has been deleted at the destination on a versioned file system
         # If copyto fails, we try to copy the file using rclone --include
@@ -193,8 +207,7 @@ class RcloneHandler:
 
         # Copy the folder contents
         # This will not delete files at the destination that are not present in the source
-        rclone_command = self._build_rclone_command([rclone_path, "copy", source_path, destination_path])
-        return self._run_command(rclone_command)
+        return self.run_command(["copy", source_path, destination_path], self.rclone_flags)
 
     def sync_folder(self, source_path):
         """
@@ -211,8 +224,7 @@ class RcloneHandler:
         destination_path = self.destination_path + relative_folder
 
         # Use rclone sync to ensure the destination is an exact copy of the source
-        rclone_command = self._build_rclone_command([rclone_path, "sync", source_path, destination_path])
-        return self._run_command(rclone_command)
+        return self.run_command(["sync", source_path, destination_path], self.rclone_flags)
     
 
     def delete_file(self, source_path):
@@ -229,8 +241,7 @@ class RcloneHandler:
         # We use rclone delete (instead of deletefile) as it also works when file does not exist on destination_path
         # This could happen is DirDeleteEvent is triggered before FileDeleteEvent
         # Using rclone delete reduces noise in the log
-        rclone_command = self._build_rclone_command([rclone_path, "delete", destination_path])
-        return self._run_command(rclone_command)
+        return self.run_command(["delete", destination_path],self.rclone_flags)
 
 
     def delete_folder(self, source_path):
@@ -241,12 +252,10 @@ class RcloneHandler:
             source_path (str): The path to the destination folder to be deleted.
         """
 
-
         source_path = source_path.replace("\\", "/")
         relative_folder = self._get_relative_path(source_path, self.base_path)
         destination_path = self.destination_path + relative_folder
         # rclone delete is safer than purge
-        rclone_command = self._build_rclone_command([rclone_path, "delete", "--rmdirs", destination_path])
-        return self._run_command(rclone_command)
+        return self.run_command(["delete", "--rmdirs", destination_path], self.rclone_flags)
 
        
