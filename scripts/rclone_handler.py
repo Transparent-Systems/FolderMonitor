@@ -49,7 +49,7 @@ class RcloneHandler:
         base_path (str): The base path of the source_path. Path after base_path is appended to the destination_path.
     """
 
-    def __init__(self, destination_path, base_path="", logger=None, rclone_flags=''):
+    def __init__(self, destination_path: str, base_path="", logger=None, rclone_flags=''):
         self.logger = logger
         self.destination_path = destination_path.replace("\\", "/")    # Ensure forward slashes for compatibility with rclone
         self.destination_path = self.destination_path.rstrip("/") # Ensure no trailing slash

@@ -24,8 +24,9 @@ def get_destination_path(path, base_path, root_destination_path):
         return f"{root_destination_path}/{return_path}"
 
 
-def run_integration_check(src_path = "data/Source",destination_path = "data/Destination", base_path = "", logger = None, rclone_flags = ""):
+def run_integration_check(src_path = "data/Source",destination_path = "data/Destination", base_path = "", logger = None):
     logger.debug("--- Rclone Integration Check ---")
+    rclone_flags = "--transfers, 8" # Comma delimited string of (key,value | key, )
     handler = RcloneHandler(destination_path, base_path, logger, rclone_flags)
 
     try:
@@ -42,7 +43,7 @@ def run_integration_check(src_path = "data/Source",destination_path = "data/Dest
         assert result_code == 0
 
         # Test 3: Copy a test file to destination
-        logger.debug(f"\n3. Copying a test file to '{test_remote}'...")
+        logger.debug(f"\n3. Copying a test file to '{src_path}'...")
         file_path = f"{src_path}/Test1/Subfolder1/test1.txt"
         # handler is instantiated with destination_path. Method copy_file derives destination path from the src_path.
         # Path in scr_path after base_path is appended to destination path
@@ -131,18 +132,12 @@ def create_test_data(path: str, files: list[str] | str):
     """
     Create files relative to path
     """
-    # try:
-    #     os.makedirs(path, exist_ok=True)
-    # except OSError as e:
-    #     logger.debug(f"Error creating path {path}: {e}")
-    #     sys.exit(1)
 
     if isinstance(files, str):
         file_list = [f"{files}"]
     else:
         file_list = files
 
-    # file_path = ""
     for filename in file_list:
         filename = filename.lstrip("/\\")
         file_path = os.path.join(path, filename)
@@ -206,6 +201,5 @@ if __name__ == "__main__":
     # Example destination path of local storage: D:/my/local/path or /my/local/path
     destination_path = "e2:test-foldermonitor/Cloud"
     base_path = "Cloud"
-    rclone_flags = "--transfers, 8" # Comma delimited string of (key,value | key, )
-    run_integration_check(src_path, destination_path, base_path, logger, rclone_flags)
+    run_integration_check(src_path, destination_path, base_path, logger)
 
