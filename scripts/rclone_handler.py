@@ -146,16 +146,14 @@ class RcloneHandler:
             result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
             # Check if the command was successful
             if result_process.returncode == 0:
-                self.logger.debug(f"Command executed successfully: {' '.join(rclone_command)}")
-                return (result_process.returncode, result_process.stdout)
+                return (result_process.returncode, result_process.stdout.strip())
             else:
-                self.logger.error(f"Error running command: {' '.join(rclone_command)}")
-                self.logger.error(f"Error details: {result_process.stderr}")
                 return (result_process.returncode, result_process.stderr)
         except subprocess.CalledProcessError as e:
-            self.logger.error(f"Error running command: {' '.join(rclone_command)}")
-            self.logger.error(f"Error: {e}")
-            self.logger.error(e.stderr)
+            # This happens in case of an rclone command failure, for example running lsf command on a file
+            # self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+            # self.logger.error(f"Error: {e}")
+            # self.logger.error(e.stderr)
             return (e.returncode, e.stderr)
 
     def get_rclone_version(self):

@@ -24,7 +24,7 @@ def get_destination_path(path, base_path, root_destination_path):
         return f"{root_destination_path}/{return_path}"
 
 
-def run_integration_check(src_path = "data/Source",destination_path = "data/Destination", base_path = "", logger = None):
+def run_integration_check(src_path = "data/Source/test_rclone_handler_integration",destination_path = "data/Destination/test_rclone_handler_integration", base_path = "", logger = None):
     logger.debug("--- Rclone Integration Check ---")
     rclone_flags = "--transfers, 8" # Comma delimited string of (key,value | key, )
     handler = RcloneHandler(destination_path, base_path, logger, rclone_flags)
@@ -161,21 +161,6 @@ if __name__ == "__main__":
     else:
         path = sys.argv[1]
 
-    test_files = []
-    test_files.append("Source/Cloud/Test1/test1.txt")
-    test_files.append("Source/Cloud/Test1/test2.txt")
-    test_files.append("Source/Cloud/Test1/Subfolder1/test1.txt")
-    test_files.append("Source/Cloud/Test1/Subfolder1/test2.txt")
-    test_files.append("Source/Cloud/Test1/Subfolder2/test1.txt")
-    test_files.append("Source/Cloud/Test1/Subfolder2/test2.txt")
-    test_files.append("Source/Cloud/Test2/test1.txt")
-    test_files.append("Source/Cloud/Test2/test2.txt")
-    test_files.append("Source/Cloud/Test2/Subfolder1/test1.txt")
-    test_files.append("Source/Cloud/Test2/Subfolder1/test2.txt")
-    test_files.append("Source/Cloud/Test2/Subfolder2/test1.txt")
-    test_files.append("Source/Cloud/Test2/Subfolder3/test2.txt")
-    # create_test_data(path, test_files)
-
     # Setup logger
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.DEBUG) # Set the overall minimum logging level
@@ -195,11 +180,10 @@ if __name__ == "__main__":
  
     logger = logging.getLogger()
     logger.debug("Before calling run_integration_check")
-    src_path = "data/Source/Cloud"
-    # src_path = "D:/Development/FolderMonitor/data/Source/Cloud"
+    src_path = "data/Source/Cloud/test_rclone_handler_integration"
     # destination path of cloud storage is in format: <remote>:<bucket>/path
     # Example destination path of local storage: D:/my/local/path or /my/local/path
-    destination_path = "e2:test-foldermonitor/Cloud"
+    destination_path = "e2:test-foldermonitor/Cloud/test_rclone_handler_integration"
     base_path = "Cloud"
     run_integration_check(src_path, destination_path, base_path, logger)
 

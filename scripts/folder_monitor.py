@@ -323,7 +323,7 @@ if __name__ == "__main__":
             continue
 
         monitor_handlers.add(monitor_handler)
-        logger.info(f"Starting monitor for [{monitor['name']}] at path {monitor['monitor_path']}")
+        logger.info(f"Starting monitor for [{monitor['name']}] at path [{monitor['monitor_path']}] to destination: [{monitor['destination_path']}]")
         # Start the monitor        
         monitor_handler.start_monitor()
 

@@ -36,27 +36,27 @@ monitors:
   # --s3-no-check-bucket: The --s3-no-check-bucket flag handles the use case where the user running folder_monitor.py has no CreateBucket permission.
   # --dry-run: This is for testing purposes only. Nothing will change in the remote storage
   # Backend flags can be added to the rclone configuration as well. This is usually more convenient
-
-
+  # While testing folder_monitor ensure each monitor has a unique monitor_path so each monitor test will trigger 1 event in 1 monitor only
+  
   - name: "local storage"
     enabled: true
-    monitor_path: "data/Source/Cloud"
+    monitor_path: "data/Source/Cloud/local-storage"
     base_path: "Cloud"
     destination_path: "data/Destination/Cloud"
     rclone_flags: "--transfers, 4"
-    backup:
-      enabled: false
-      interval: "0s"
-      copy_mode: "copy"
+    # backup:
+    #   enabled: false
+    #   interval: "0s"
+    #   copy_mode: "copy"
 
   - name: "cloud storage"
-    enabled: false
-    monitor_path: "data/Source/Cloud"
+    enabled: true
+    monitor_path: "data/Source/Cloud/cloud-storage"
     base_path: "Cloud"
     destination_path: "e2:test-foldermonitor/Cloud"
     rclone_flags: "--transfers, 8, --s3-no-check-bucket"
-    backup:
-      enabled: false
-      interval: "0s"
-      copy_mode: "copy"
+    # backup:
+    #   enabled: false
+    #   interval: "0s"
+    #   copy_mode: "copy"
 
