@@ -1,165 +1,193 @@
+import argparse
+import json
 import os
 import sys
 import logging
 import shutil
+import yaml
+from logging.handlers import RotatingFileHandler
 
 # Add the scripts directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../scripts')))
 
+from utils import create_test_data, delete_test_data, get_unique_logger, ProcessTestResult, check_basename_in_path 
 from rclone_handler import RcloneHandler
 
-def get_destination_path(path, base_path, root_destination_path):
-    path = path.replace("\\", "/")
-    # Return part after base_path
-    # Or entire path if base_path not found
-    try:
-        index = path.index(base_path)
-        return_path = path[index + len(base_path):]
-    except ValueError:
-        return_path = path
 
-    if return_path.startswith("/"):
-        return f"{root_destination_path}{return_path}"
-    else:
-        return f"{root_destination_path}/{return_path}"
-
-
-def run_integration_check(src_path = "data/Source/test_rclone_handler_integration",destination_path = "data/Destination/test_rclone_handler_integration", base_path = "", logger = None):
+def run_integration_check(testsuite_name: str, source_path: str, destination_path: str, rclone_flags: str, logger: logging.Logger) -> ProcessTestResult:
     logger.debug("--- Rclone Integration Check ---")
-    rclone_flags = "--transfers, 8" # Comma delimited string of (key,value | key, )
-    handler = RcloneHandler(destination_path, base_path, logger, rclone_flags)
+    process_test_result = ProcessTestResult(testsuite_name=testsuite_name)
+    rclone_handler = RcloneHandler(
+        base_destination_path=destination_path, 
+        base_source_path=source_path, 
+        logger=logger, 
+        rclone_flags=rclone_flags
+        )
 
     try:
-        # Test 1: Get Version
-        logger.debug("\n1. Getting Rclone Version...")
-        (result_code, result_output) = handler.get_rclone_version()
-        logger.debug(f"Rclone Version: {result_output}")
-        assert "rclone" in result_output.lower()
+        testname = "Test 1: Get Version"
+        logger.debug(testname)
+        (result_code, result_output) = rclone_handler.get_rclone_version()
+        result_output = result_output.replace("\n", " ; ")
+        process_test_result.process_result(testname, ("rclone" in result_output.lower()), result_output)
 
-        # Test 2: List Remotes
-        logger.debug("\n2. Listing Remotes...")
-        (result_code, result_output) = handler.list_remotes()
-        logger.debug(f"Configured Remotes:\n{result_output}")
-        assert result_code == 0
+        testname = "Test 2: List Remotes"
+        logger.debug(testname)
+        (result_code, result_output) = rclone_handler.list_remotes()
+        result_output = result_output.replace("\n", " ; ")
+        process_test_result.process_result(testname, (result_code == 0), result_output)
 
-        # Test 3: Copy a test file to destination
-        logger.debug(f"\n3. Copying a test file to '{src_path}'...")
-        file_path = f"{src_path}/Test1/Subfolder1/test1.txt"
-        # handler is instantiated with destination_path. Method copy_file derives destination path from the src_path.
-        # Path in scr_path after base_path is appended to destination path
-        (result_code, result_output) = handler.copy_file(file_path)
-        logger.debug(f"Copy_file output:\n{result_output}")
-        assert result_code == 0
+        testname = "Test 3: Copy a test file to remote"
+        logger.debug(testname)
+        # Create file first 
+        file_path = f"{source_path}/test1.txt"
+        file_path = create_test_data(path=source_path, files="test1.txt")
+        (result_code, result_output) = rclone_handler.copy_file(file_path)
+        process_test_result.process_result(testname, (result_code == 0), result_output)
 
-        # Test 4: Verify file existence on remote (using lsf)
-        logger.debug("Verifying file on remote...")
-        file_path = f"{src_path}/Test1/Subfolder1/test1.txt"
-        dst_path = get_destination_path(file_path, base_path, destination_path)
-        rclone_command = f"lsf, {dst_path}"
-        (result_code, result_output) = handler.run_command(rclone_command)
-        logger.debug(f"Remote content:\n{result_output}")
-        file_name = os.path.basename(file_path)
-        assert file_name in result_output
+        testname = "Test 4: Copy file to remote"
+        logger.debug(testname)
+        filename = "test1.txt"
+        file_path = create_test_data(path=source_path, files=filename)
+        # Create source file first, otherwise rclone_handler.copy_file may fail
+        (result_code, result_output) = rclone_handler.copy_file(file_path)
+        if result_code !=0:
+            process_test_result.process_result(testname, (False), result_output, f"copy file {filename}")
+        else:
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            parent_folder = os.path.dirname(dst_path)
+            (found, files) = check_basename_in_path(
+                rclone_handler=rclone_handler, 
+                remote_path=parent_folder,
+                basename=filename
+                )
+            
+            process_test_result.process_result(testname, (found), files, f"verify file {filename} on remote")
 
-        # Test 5: Create a new file
-        logger.debug("Create a new file on remote...")
-        file_path = create_test_data(src_path, "Test1/Subfolder1/test3.txt")
-        (result_code, result_output) = handler.copy_file(file_path)
-        logger.debug(f"Copy result code: {result_code}")
-        assert result_code == 0
+        #===
+        testname = "Test 5: Delete a file at remote"
+        logger.debug(testname)
+        filename = "test2.txt"
 
-        # Test 6: Emulate move file
-        logger.debug("Move file ...")
-        old_file_path = create_test_data(src_path, ["Test1/Subfolder1/test3.txt"])
-        shutil.move(f"{src_path}/Test1/Subfolder1/test3.txt", f"{src_path}/Test1/Subfolder1/test3_moved.txt") 
-        # Delete old file at destination
-        (result_code, result_output) = handler.delete_file(old_file_path)
-        assert result_code == 0  
+        # Create source file first, otherwise rclone_handler.copy_file may fail;
+        file_path = create_test_data(path=source_path, files=filename)
 
-        # Create new file at destination
-        (result_code, result_output) = handler.copy_file(f"{src_path}/Test1/Subfolder1/test3_moved.txt")
-        logger.debug(f"Copy result code: {result_code}")
-        assert result_code == 0
+        # Now copy file to destination
+        (result_code, result_output) = rclone_handler.copy_file(file_path)
+        if result_code !=0:
+            process_test_result.process_result(testname, (False), result_output, f"copy file {filename} to remote")
+        else:
+            # Now delete the destination file
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            (result_code, result_output) = rclone_handler.delete_file(dst_path)
 
-        # Test 7: Copy entire folder
-        logger.debug("Copy entire folder to destination ...")
+            # Check if the destination file has indeed been deleted
+            parent_folder = os.path.dirname(dst_path)
+            (found, files) = check_basename_in_path(
+                rclone_handler=rclone_handler, 
+                remote_path=parent_folder,
+                basename=filename
+                )
+
+            # File should not be found
+            process_test_result.process_result(testname, (not found), files, f"check file {filename} deleted")
+
+        #===
+        testname = "Test 6: Create folder with files"
+        logger.debug(testname)
         test_files = []
-        test_files.append("Test1/Subfolder3/test1.txt")
-        test_files.append("Test1/Subfolder3/test2.txt")
-        file_path = create_test_data(src_path, test_files)
+        test_files.append("Subfolder1/test1.txt")
+        test_files.append("Subfolder1/test2.txt")
+        test_files.append("Subfolder1/test3.txt")
+
+        # Create folder on source first
+        file_path = create_test_data(source_path, test_files)
+
+        # Now copy folder to destination
         head = os.path.dirname(file_path)
-        (result_code, result_output) = handler.copy_folder(head)
-        logger.debug(f"Copy result code: {result_code}")
-        assert result_code == 0
+        (result_code, result_output) = rclone_handler.copy_folder(head)
+        process_test_result.process_result(testname, (result_code == 0), result_output, f"copy folder {os.path.basename(head)}")
 
-        # Check if subolder has been copied to destination
-        rclone_command = ["lsf", "--format", "tshp", "--separator", " | ", head] 
-        (result_code, result_output) = handler.run_command(rclone_command)
-        logger.debug(f"result_output:\n{result_output}")
-        file_name = os.path.basename(file_path)
-        assert file_name in result_output
+        # Check if subfolder has been copied to destination
+        # There should be at least 3 files in the subfolder now
+        destination_path = rclone_handler.get_destination_path(head)
+        filename = os.path.basename(file_path)
+        (found, files) = check_basename_in_path(
+            rclone_handler=rclone_handler, 
+            remote_path=destination_path,
+            basename=filename
+            )
 
-        # Test 8: Remove entire folder and contents from destination
-        logger.debug("Remove entire folder and contents from destination ...")
+        # We should have found filename and there should be at least len(test_files) files
+        result = (found and len(files) >= len(test_files))
+        process_test_result.process_result(testname, (result), files, f"found file {filename} on remote")
+
+        #====
+        testname = "Test 7: Remove folder from remote"
+        logger.debug(testname)
         test_files = []
-        test_files.append("Test1/Subfolder3/test1.txt")
-        test_files.append("Test1/Subfolder3/test2.txt")
-        file_path = create_test_data(src_path, test_files)
+        test_files.append("Subfolder2/test1.txt")
+        test_files.append("Subfolder2/test2.txt")
+        test_files.append("Subfolder2/test3.txt")
+
+        # Create folder on source first
+        file_path = create_test_data(source_path, test_files)
+
+        # Now copy folder to destination
         head = os.path.dirname(file_path)
-        (result_code, result_output) = handler.delete_folder(head)
-        assert result_code == 0
+        (result_code, result_output) = rclone_handler.copy_folder(head)
+        process_test_result.process_result(testname, (result_code == 0), result_output, f"copy folder {os.path.basename(head)} to remote")
 
-        # Check if subolder has been removed from destination
-        dst_path = get_destination_path(head, base_path, destination_path)
-        rclone_command = ["lsf", "--format", "tshp", "--separator", " | ", dst_path] 
-        (result_code, result_output) = handler.run_command(rclone_command)
-        assert result_code == 0
-        file_name = os.path.basename(file_path)
-        assert file_name not in result_output
+        # Check if subfolder has been copied to destination
+        # There should be at least 3 files in the subfolder now
+        destination_path = rclone_handler.get_destination_path(head)
+        filename = os.path.basename(file_path)
+        (found, files) = check_basename_in_path(
+            rclone_handler=rclone_handler, 
+            remote_path=destination_path,
+            basename=filename
+            )
 
+        # We should have found filename and there should be at least test_file.len files
+        result = (found and len(files) >= len(test_files))
+        process_test_result.process_result(testname, (result), files, f"check folder {filename} exists")
 
-        logger.debug("\n--- All integration checks passed! ---")
+        # Now delete the destination folder
+        head = os.path.dirname(file_path)
+        destination_path = rclone_handler.get_destination_path(head)
+        (result_code, result_output) = rclone_handler.delete_folder(destination_path)
+        process_test_result.process_result(testname, (result_code == 0), result_output, f"delete folder {os.path.basename(head)}")
+
+        # Check if folder has been deleted at destination
+        # Get parent of subfolder, then check if folder exists
+        parent_folder = os.path.dirname(head)
+        destination_path = rclone_handler.get_destination_path(parent_folder)
+        (found, files) = check_basename_in_path(
+            rclone_handler=rclone_handler, 
+            remote_path=destination_path,
+            basename=head
+            )
+        
+        process_test_result.process_result(testname, (not found), result_output, f"check folder {os.path.basename(head)} deleted")
+ 
+
+        logger.debug("\n--- All integration checks done ---")
 
     except Exception as e:
         logger.debug(f"\n--- Integration check FAILED: {e} ---")
     finally:
         logger.debug(f"\n--- Integration check cleanup")
-        # if os.path.exists(local_file_path):
-        #     os.remove(local_file_path)
 
-
-def create_test_data(path: str, files: list[str] | str):
-    """
-    Create files relative to path
-    """
-
-    if isinstance(files, str):
-        file_list = [f"{files}"]
-    else:
-        file_list = files
-
-    for filename in file_list:
-        filename = filename.lstrip("/\\")
-        file_path = os.path.join(path, filename)
-        head = os.path.dirname(file_path)
-        try:
-            os.makedirs(head, exist_ok=True)
-        except OSError as e:
-            logger.debug(f"Error creating folder {head}: {e}")
-            sys.exit(1)
-
-        with open(file_path, 'w') as f:
-            logger.debug(f"Writing to file {filename}")
-            f.write(f"Test data for {filename}\n")
-
-    return file_path
-
-   
+    return process_test_result
+  
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        path = "data"
-    else:
-        path = sys.argv[1]
+    parser = argparse.ArgumentParser(description="This script runs integration tests for rclone_handler. The configuration is in a monitor yaml file.")
+    parser.usage = "python test_rclone_handler_integration.py --monitor-config-path <path> --log-level <log level"
+    parser.add_argument("--monitor-config-path", type=str, help="Path of monitor configuration file. Default is test/conf/monitor.yaml", default="tests/conf/monitor.yaml")
+    parser.add_argument("--log-filename", type=str, help="Logfile name. Default is test_rclone_handler_integration.log", default="test_rclone_handler_integration.log")
+    parser.add_argument("--log-level", type=str, help="Log level. Default is DEBUG", default="DEBUG")
+    parser.add_argument("--test-delay", type=str, help="Delay in seconds.", default=.5)
+    args = parser.parse_args()
 
     # Setup logger
     root_logger = logging.getLogger()
@@ -175,15 +203,96 @@ if __name__ == "__main__":
     )
     console_handler_real.setFormatter(formatter)
     root_logger.addHandler(console_handler_real)
-    root_logger.debug("Root logger configured with condole handler.")
+    root_logger.debug("Root logger configured with console handler.")
     # --- End Central Logging Setup ---
  
-    logger = logging.getLogger()
-    logger.debug("Before calling run_integration_check")
-    src_path = "data/Source/Cloud/test_rclone_handler_integration"
-    # destination path of cloud storage is in format: <remote>:<bucket>/path
-    # Example destination path of local storage: D:/my/local/path or /my/local/path
-    destination_path = "e2:test-foldermonitor/Cloud/test_rclone_handler_integration"
-    base_path = "Cloud"
-    run_integration_check(src_path, destination_path, base_path, logger)
+    # Load configuration from the monitor config file
+    with open(args.monitor_config_path, 'r') as file:
+        monitor_config = yaml.safe_load(file)
 
+    # monitor_config = ConfigHandler(args.monitor_config_path)
+    log_config = monitor_config.get("logging")
+    if log_config is None:
+        print(f"Configuration for 'logging' not found in {args.monitor_config_path}.")
+        sys.exit(1)
+
+    # LOG_FILE = log_config.get('log_filename', 'test_rclone_handler_integration.log')
+    LOG_FOLDER = log_config.get('log_folder', 'logs')
+    MAX_BYTES = log_config.get('max_bytes', 10 * 1024 * 1024)  # Default to 10 MB
+    BACKUP_COUNT = log_config.get('backup_count', 5)  # Default to
+
+    rotating_log_file = os.path.join(LOG_FOLDER, args.log_filename)
+    # Ensure the log folder exists
+    if not os.path.exists(LOG_FOLDER):
+        try:
+            os.makedirs(LOG_FOLDER)
+            print(f"Log folder '{LOG_FOLDER}' created.")
+        except OSError as e:
+            print(f"Error creating log folder {LOG_FOLDER}: {e}")
+            sys.exit(1)
+
+    # These are the *actual* handlers that write to disk/console
+    rotating_file_handler_real = logging.handlers.RotatingFileHandler(
+        rotating_log_file,
+        maxBytes=MAX_BYTES,
+        backupCount=BACKUP_COUNT
+    )
+
+    formatter = logging.Formatter(
+        "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
+    )
+    rotating_file_handler_real.setFormatter(formatter)
+    root_logger.addHandler(rotating_file_handler_real)
+    logger = get_unique_logger(args.log_level)
+    logger.debug("Before calling run_integration_check")
+
+    monitors = monitor_config.get("monitors")
+    process_test_results: list[ProcessTestResult] = []
+    for monitor in monitors:
+        monitor_name = monitor.get("name") 
+        subfolder = "test_rclone_handler_integration"
+        source_path = monitor.get("monitor_path")
+        source_path = source_path.rstrip("/\\")
+        source_path = f"{source_path}/{subfolder}"
+        destination_path = monitor.get("destination_path")
+        destination_path = destination_path.rstrip("/\\")
+        destination_path = f"{destination_path}/{subfolder}"
+ 
+        process_test_result = run_integration_check(
+            testsuite_name=monitor_name,
+            source_path=source_path,
+            destination_path=destination_path,
+            rclone_flags=monitor.get("rclone_flags", ""),
+            logger=logger
+            )
+        
+        process_test_results.append(process_test_result)
+
+    # Print test resuls of all monitors
+    total_success_count = 0
+    total_failure_count = 0
+    total_duration = 0
+    for process_test_result in process_test_results:
+        # (testsuite_name, success_count, failure_count, test_results, duration) = process_test_result.get_result()
+        total_success_count += process_test_result.success_count
+        total_failure_count += process_test_result.failure_count
+        total_duration += process_test_result.duration
+        logger.info(f"===> BEGIN: test results for [{process_test_result.testsuite_name}] <===")
+        logger.info("==================================================")
+        logger.info(f"Number of tests : {process_test_result.success_count + process_test_result.failure_count}")
+        logger.info(f"Success count   : {process_test_result.success_count}")
+        logger.info(f"Failure count   : {process_test_result.failure_count}")
+        logger.info(f"Duration        : {process_test_result.duration: .2f} seconds")
+        logger.info("==================================================")
+        for result in process_test_result.test_results:
+            logger.info(result)
+        logger.info(f"===> END: test results for [{process_test_result.testsuite_name}] <===")
+
+    # Print totals over all monitors
+    logger.info(f"===> Total counts for all monitors <===")
+    logger.info("==================================================")
+    logger.info(f"Total number of tests : {total_success_count + total_failure_count}")
+    logger.info(f"Total success count   : {total_success_count}")
+    logger.info(f"Total failure count   : {total_failure_count}")
+    logger.info(f"Total duration        : {total_duration: .2f} seconds")
+    logger.info(f"===> End total counts for all monitors <===")

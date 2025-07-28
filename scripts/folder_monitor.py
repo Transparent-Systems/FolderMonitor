@@ -126,9 +126,9 @@ def perform_backup(monitor_config, reason="scheduled"):
         copy_mode = "copy"
 
     destination_path = monitor_config.get("destination_path")
-    base_path = monitor_config.get("base_path", "")
+    monitor_path = monitor_config.get("monitor_path")
     rclone_flags = monitor_config.get("rclone_flags", "")
-    rclone_handler = RcloneHandler(destination_path, base_path, logger, rclone_flags)
+    rclone_handler = RcloneHandler(destination_path, monitor_path, logger, rclone_flags)
 
     if copy_mode == "sync":
         logger.debug(f"Syncing folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")

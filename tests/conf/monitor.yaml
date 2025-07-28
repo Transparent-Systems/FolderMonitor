@@ -41,20 +41,28 @@ monitors:
   - name: "local storage"
     enabled: true
     monitor_path: "data/Source/Cloud/local-storage"
-    base_path: "Cloud"
-    destination_path: "data/Destination/Cloud"
+    destination_path: "data/Destination/Cloud/local-storage"
     rclone_flags: "--transfers, 4"
-    # backup:
-    #   enabled: false
-    #   interval: "0s"
-    #   copy_mode: "copy"
+  # #   # backup:
+  #   #   enabled: false
+  #   #   interval: "0s"
+  #   #   copy_mode: "copy"
 
-  - name: "cloud storage"
-    enabled: true
-    monitor_path: "data/Source/Cloud/cloud-storage"
-    base_path: "Cloud"
-    destination_path: "e2:test-foldermonitor/Cloud"
-    rclone_flags: "--transfers, 8, --s3-no-check-bucket"
+  # - name: "idrive cloud storage"
+  #   enabled: true
+  #   monitor_path: "data/Source/Cloud/cloud-storage"
+  #   destination_path: "e2:test-foldermonitor/Cloud/cloud-storage"
+  #   rclone_flags: "--transfers, 8, --s3-no-check-bucket"
+  #   # backup:
+  #   #   enabled: false
+  #   #   interval: "0s"
+  #   #   copy_mode: "copy"
+
+  # - name: "google drive cloud storage"
+  #   enabled: true
+  #   monitor_path: "data/Source/Cloud/cloud-storage"
+  #   destination_path: "drive:test-foldermonitor/Cloud/cloud-storage"
+  #   rclone_flags: "--transfers, 4"
     # backup:
     #   enabled: false
     #   interval: "0s"

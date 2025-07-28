@@ -77,24 +77,24 @@ class MyEventHandler(FileSystemEventHandler):
 
     def on_deleted(self, event):
         self.logger.info(f"on_deleted: src_path='{event.src_path}'") 
+        destination_path = self.rclone_handler.get_destination_path(event.src_path)
         if event.is_directory:
             # If the event is a directory deletion, we delete the entire folder
             # This may never happen as watchdog does trigger a FileDeletedEvent for directories
-            self.rclone_handler.delete_folder(event.src_path)
+            self.rclone_handler.delete_folder(destination_path)
         else:
             # If the event is a file deletion, we delete the specific file
-            (return_code, return_output)  = self.rclone_handler.delete_file(event.src_path)
+            (return_code, return_output)  = self.rclone_handler.delete_file(destination_path)
             # Watchdog can trigger a FileDeletedEvent for a directory if its contents change,
             # so we log the return code for debugging purposes
             # If the return code is 0, the file was successfully deleted
             if return_code == 0:
                 return
             
+            self.logger.debug(f"on_deleted: failed to delete {destination_path}, return_output: {return_output}")
             # watchdog can trigger a FileDeletedEvent for a directory if the directory is deleted
             # so we log the return code for debugging purposes
-            self.logger.debug(f"on_deleted: failed to delete {event.src_path}, return code: {return_code}")
-            # Watchdog trigger FileDeletedEvent for deleted folder, so delete folder here.
-            self.logger.debug(f"on_deleted: delete folder '{event.src_path}'")
+            # Watchdog triggered FileDeletedEvent for deleted folder, so delete folder here.
             self.rclone_handler.delete_folder(event.src_path)
 
 
@@ -132,7 +132,8 @@ class MyEventHandler(FileSystemEventHandler):
             self.rclone_handler.copy_folder(event.dest_path)
         else:
             # Remove src_path (old file) from remote
-            self.rclone_handler.delete_file(event.src_path)
+            destination_path = self.rclone_handler.get_destination_path(event.src_path)
+            self.rclone_handler.delete_file(destination_path)
             # Copy dest_path (new file) to remote
             self.rclone_handler.copy_file(event.dest_path)
 
@@ -173,15 +174,13 @@ class MonitorHandler:
         if not self.destination_path:
             raise ValueError("destination_path is required in the monitor configuration.")
         
-        self.base_path = monitor_config.get('base_path', '')
-        self.copy_mode = monitor_config.get('copy_mode', 'sync')  # Default to 'sync' if not specified
-        self.rclone_flags = monitor_config.get('rclone_flags', '"--transfers, 4, --s3-no-check-bucket') 
+        self.rclone_flags = monitor_config.get('rclone_flags', '"--transfers, 4') 
         self.logger.debug("MonitorHandler: exiting __init__")
 
 
     def start_monitor(self):
         """Start monitoring the specified folder for changes."""
-        rclone_handler = RcloneHandler(self.destination_path, self.base_path, self.logger, self.rclone_flags)
+        rclone_handler = RcloneHandler(self.destination_path, self.monitor_path, self.logger, self.rclone_flags)
         event_handler = MyEventHandler(rclone_handler, self.logger)
         self.observer = Observer()
 
