@@ -64,67 +64,68 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
         (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
         process_test_result.process_result(testname, (found), files)
     
-        # testname = "Test 2 : Delete a file"
-        # filename = "test1.txt"
-        # filepath = delete_test_data(path=test_src_path, files=filename)
-        # logger.debug(f"Deleted source file : '{filepath}'")
-        # time.sleep(test_delay)  # Sleep for a short duration
-        # # Get destination path of parent folder
-        # parent_folder = os.path.dirname(filepath)
-        # dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        # basename = os.path.basename(filepath)
-        # (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, filename=basename)
-        # process_test_result.process_result(testname, (not found), files)
-
-        # testname = "Test 3 : Create subfolder with files. Check last file only"
-        # files = []
-        # files.append("Subfolder1/test1.txt")
-        # files.append("Subfolder1/test2.txt")
-        # files.append("Subfolder1/test3.txt")
-        # filepath = create_test_data(path=test_src_path, files=files)
-        # # Wait to let monitor finish
-        # time.sleep(test_delay)  # Sleep for a short duration
-        # parent_folder = os.path.dirname(filepath)
-        # dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        # basename = os.path.basename(filepath)
-        # (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, filename=basename)
-        # process_test_result.process_result(testname, (found and len(files) == 3), files)
-
-        # testname = "Test 4 : Delete subfolder."
-        # files = []
-        # files.append("Subfolder1")
-        # filepath = delete_test_data(path=test_src_path, files=files)
-        # # Wait to let monitor finish
-        # time.sleep(test_delay)  # Sleep for a short duration
-        # parent_folder = os.path.dirname(filepath)
-        # dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        # basename = os.path.basename(filepath)
-        # (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, filename=basename)
-        # process_test_result.process_result(testname, (not found), files)
+        testname = "Test 2 : Delete a file"
+        filename = "test1.txt"
+        filepath = delete_test_data(path=test_src_path, files=filename)
+        logger.debug(f"Deleted source file : '{filepath}'")
+        time.sleep(test_delay)  # Sleep for a short duration
+        # Get destination path of parent folder
+        parent_folder = os.path.dirname(filepath)
+        dst_path = rclone_handler.get_destination_path(path=parent_folder)
+        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=filename)
+        process_test_result.process_result(testname, (not found), files)
 
 
-        # testname = "Test 5 : Rename file"
-        # files ="old_file.txt"
-        # old_file_path = create_test_data(path=test_src_path, files=files)
-        # time.sleep(test_delay)  # Sleep for a short duration
-        # # Rename the file
-        # new_file_path = os.path.join(test_src_path, "new_file.txt")
+        testname = "Test 3 : Create subfolder with files. Check last file only"
+        files = []
+        files.append("Subfolder1/test1.txt")
+        files.append("Subfolder1/test2.txt")
+        files.append("Subfolder1/test3.txt")
+        filepath = create_test_data(path=test_src_path, files=files)
+        # Wait to let monitor finish
+        time.sleep(test_delay)  # Sleep for a short duration
+        parent_folder = os.path.dirname(filepath)
+        dst_path = rclone_handler.get_destination_path(path=parent_folder)
+        basename = os.path.basename(filepath)
+        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
+        process_test_result.process_result(testname, (found and len(files) == 3), files)
 
-        # if (os.path.exists(new_file_path)):
-        #     os.remove(new_file_path)
 
-        # os.rename(src=old_file_path, dst=new_file_path)
-        # time.sleep(test_delay)  # Sleep for a short duration
-        # parent_folder = test_src_path
-        # dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        # # Check if old file has been deleted from destination
-        # basename = os.path.basename(old_file_path)
-        # (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, filename=basename)
-        # process_test_result.process_result(f"{testname}-1", (not found), files)
-        # # Check if new file exists at destination
-        # basename = os.path.basename(new_file_path)
-        # (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, filename=basename)
-        # process_test_result.process_result(f"{testname}-2", found, files)
+        testname = "Test 4 : Delete subfolder."
+        files = []
+        files.append("Subfolder1")
+        filepath = delete_test_data(path=test_src_path, files=files)
+        # Wait to let monitor finish
+        time.sleep(test_delay)  # Sleep for a short duration
+        parent_folder = os.path.dirname(filepath)
+        dst_path = rclone_handler.get_destination_path(path=parent_folder)
+        basename = os.path.basename(filepath)
+        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
+        process_test_result.process_result(testname, (not found), files)
+
+
+        testname = "Test 5 : Rename file"
+        files ="old_file.txt"
+        old_file_path = create_test_data(path=test_src_path, files=files)
+        time.sleep(test_delay)  # Sleep for a short duration
+        # Rename the file
+        new_file_path = os.path.join(test_src_path, "new_file.txt")
+
+        if (os.path.exists(new_file_path)):
+            os.remove(new_file_path)
+
+        os.rename(src=old_file_path, dst=new_file_path)
+        time.sleep(test_delay)  # Sleep for a short duration
+        parent_folder = test_src_path
+        dst_path = rclone_handler.get_destination_path(path=parent_folder)
+        # Check if old file has been deleted from destination
+        basename = os.path.basename(old_file_path)
+        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
+        process_test_result.process_result(testname, (not found), files, f"check old file {basename} not found")
+        # Check if new file exists at destination
+        basename = os.path.basename(new_file_path)
+        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
+        process_test_result.process_result(testname, found, files, f"check new file {basename} found")
 
 
     except Exception as e:
