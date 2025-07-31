@@ -1,4 +1,6 @@
 """
+Version: 1.0
+
 This script makes changes to the monitor_path to trigger events in the MonitorHandler
 The script depens on a folder_monitor running.
 folder_monitor runs in a separate script
@@ -11,121 +13,137 @@ Start folder_monitor using the same monitor yaml file as this script
 
 Important notes:
 1)
-This relates to testing s3-compatible cloud storage.
+This note relates to testing s3-compatible cloud storage.
 S3 storage (or compatible versions like IDrive e2) is an object storage system. It does not have a real foldr structure.
 Now, when in a tree with just 1 fie that file is deleted, the entire folder tree is gone!
 For example: e2:mybucket/a/b/c/test1.txt
 After deleting test1.txt, the only thing remaining is: e2:mybucket
 2)
 The behaviour for a file like "rclone ls <file>" is different between local storage and remote storage.
-To get a more reliable check if a file exists on both local and remote storage use "rclone json <parent-folder>
-
+To get a more reliable check if a file exists on both local and remote storage we use "rclone lsjson <parent-folder>
 """
 
 import argparse
-import json
 import logging.handlers
 import os
 import sys
 import logging
-import shutil
-import time
 import yaml
+import shutil
 
 # Add the scripts directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../scripts')))
 
 from rclone_handler import RcloneHandler
-from utils import create_test_data, delete_test_data, get_unique_logger, check_basename_in_path, ProcessTestResult
+from utils import create_test_data, delete_test_data, get_unique_logger, CheckPath, ProcessTestResult
 
 
-def run_integration_check(monitor_name: str, source_path = "data/Source",destination_path = "data/Destination", logger = None, test_delay=1):
+def run_integration_check(monitor_name: str, source_path = "data/Source",destination_path = "data/Destination", logger = None, check_delay=1):
     """
     Trigger events in monitor path src_path
     All files and folder created will be in test subfolder
     That way we can safely remove that test subfolder from source and destination
     """
     logger.debug("--- Rclone Integration Check ---")
-    test_src_path = os.path.join(source_path, "test_folder_monitor_integration")
 
     # Create rclone_handler to check files at destination_path
     rclone_handler = RcloneHandler(base_destination_path=destination_path, base_source_path=source_path, logger=logger, rclone_flags='')
     process_test_result = ProcessTestResult(monitor_name)
+    check_path = CheckPath(rclone_handler=rclone_handler, check_delay=check_delay)
     logger.debug(f"Starting tests for monitor name [{monitor_name}] on monitor path [{source_path}]...")
 
     try:
+        #####################################
         testname = "Test 1 : Create new file"
         filename = "test1.txt"
-        filepath = create_test_data(path=test_src_path, files=filename)
-        time.sleep(test_delay)  # Sleep for a short duration
-        parent_folder = os.path.dirname(filepath)
-        dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        basename = os.path.basename(filepath)
-        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
+        filepath = create_test_data(path=source_path, files=filename)
+        (head, tail) = os.path.split(filepath)
+        dst_path = rclone_handler.get_destination_path(path=head)
+        (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process_result(testname, (found), files)
     
+        ######################################
         testname = "Test 2 : Delete a file"
         filename = "test1.txt"
-        filepath = delete_test_data(path=test_src_path, files=filename)
+        filepath = delete_test_data(path=source_path, files=filename)
         logger.debug(f"Deleted source file : '{filepath}'")
-        time.sleep(test_delay)  # Sleep for a short duration
-        # Get destination path of parent folder
-        parent_folder = os.path.dirname(filepath)
-        dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=filename)
+        (head, tail) = os.path.split(filepath)
+        dst_path = rclone_handler.get_destination_path(path=head)
+        (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process_result(testname, (not found), files)
 
-
+        ######################################
         testname = "Test 3 : Create subfolder with files. Check last file only"
         files = []
         files.append("Subfolder1/test1.txt")
         files.append("Subfolder1/test2.txt")
         files.append("Subfolder1/test3.txt")
-        filepath = create_test_data(path=test_src_path, files=files)
-        # Wait to let monitor finish
-        time.sleep(test_delay)  # Sleep for a short duration
-        parent_folder = os.path.dirname(filepath)
-        dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        basename = os.path.basename(filepath)
-        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
-        process_test_result.process_result(testname, (found and len(files) == 3), files)
+        filepath = create_test_data(path=source_path, files=files)
+        (head, tail) = os.path.split(filepath)
+        dst_path = rclone_handler.get_destination_path(path=head)
+        (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
+        process_test_result.process_result(testname, (found), files)
 
-
+        ######################################
         testname = "Test 4 : Delete subfolder."
         files = []
         files.append("Subfolder1")
-        filepath = delete_test_data(path=test_src_path, files=files)
-        # Wait to let monitor finish
-        time.sleep(test_delay)  # Sleep for a short duration
-        parent_folder = os.path.dirname(filepath)
-        dst_path = rclone_handler.get_destination_path(path=parent_folder)
-        basename = os.path.basename(filepath)
-        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
+        filepath = delete_test_data(path=source_path, files=files)
+        (head, tail) = os.path.split(filepath)
+        dst_path = rclone_handler.get_destination_path(path=head)
+        (found, files) = check_path.folder_exists(parent_path=dst_path, folder_name=tail)
         process_test_result.process_result(testname, (not found), files)
 
-
+        ######################################
         testname = "Test 5 : Rename file"
         files ="old_file.txt"
-        old_file_path = create_test_data(path=test_src_path, files=files)
-        time.sleep(test_delay)  # Sleep for a short duration
+        old_file_path = create_test_data(path=source_path, files=files)
         # Rename the file
-        new_file_path = os.path.join(test_src_path, "new_file.txt")
+        new_file_path = os.path.join(source_path, "new_file.txt")
 
         if (os.path.exists(new_file_path)):
             os.remove(new_file_path)
 
         os.rename(src=old_file_path, dst=new_file_path)
-        time.sleep(test_delay)  # Sleep for a short duration
-        parent_folder = test_src_path
-        dst_path = rclone_handler.get_destination_path(path=parent_folder)
         # Check if old file has been deleted from destination
-        basename = os.path.basename(old_file_path)
-        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
-        process_test_result.process_result(testname, (not found), files, f"check old file {basename} not found")
+        (head, tail) = os.path.split(old_file_path)
+        dst_path = rclone_handler.get_destination_path(path=head)
+        (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
+        process_test_result.process_result(testname, (not found), files, f"check {tail} not found")
+
         # Check if new file exists at destination
-        basename = os.path.basename(new_file_path)
-        (found, files) = check_basename_in_path(rclone_handler, remote_path=dst_path, basename=basename)
-        process_test_result.process_result(testname, found, files, f"check new file {basename} found")
+        (head, tail) = os.path.split(new_file_path)
+        dst_path = rclone_handler.get_destination_path(head)
+        (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
+        process_test_result.process_result(testname, found, files, f"check {tail} found")
+
+        ######################################
+        testname = "Test 6 : Rename subfolder"
+        files = []
+        files.append("Subfolder-old/test1.txt")
+        files.append("Subfolder-old/test2.txt")
+        file_path = create_test_data(path=source_path, files=files)
+
+        # Rename subfolder
+        (head1, tail1) = os.path.split(file_path)
+        head2 = head1.replace("Subfolder-old", "Subfolder-new")
+
+        if (os.path.exists(head2)):
+            shutil.rmtree(head2)
+
+        shutil.move(head1, head2)
+
+        # Check if old folder has been deleted from destination
+        (head, tail) = os.path.split(head1)
+        dst_path = rclone_handler.get_destination_path(head)
+        (found, files) = check_path.folder_exists(parent_path=dst_path, folder_name=tail)
+        process_test_result.process_result(testname, (not found), files, f"check {tail} not found")
+
+        # Check if new folder exists at destination
+        (head, tail) = os.path.split(head2)
+        dst_path = rclone_handler.get_destination_path(head)
+        (found, files) = check_path.folder_exists(parent_path=dst_path, folder_name=tail)
+        process_test_result.process_result(testname, found, files, f"check {tail} found")
 
 
     except Exception as e:
@@ -142,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument("--monitor-config-path", type=str, help="Path of monitor configuration file. Default is conf/monitor.yaml", default="tests/conf/monitor.yaml")
     parser.add_argument("--log-filename", type=str, help="Logfile name. Default is monitor_integration_test.log", default="monitor_integration_test.log")
     parser.add_argument("--log-level", type=str, help="Log level. Default is DEBUG", default="DEBUG")
-    parser.add_argument("--test-delay", type=str, help="Delay in seconds after triggering a monitor event.", default=.5)
+    parser.add_argument("--check-delay", type=str, help="Delay in seconds after triggering a monitor event.", default=1)
     args = parser.parse_args()
 
     # Setup logger
@@ -207,6 +225,7 @@ if __name__ == "__main__":
     # Iterate over monitors, creating a MonitorHandler for each one and starting it
     monitor_handlers = set()
     process_test_results : list[ProcessTestResult] = [] 
+    check_delay_default = args.check_delay
     for monitor in monitors:
         logger.debug(f"Generating events for monitor: [{monitor['name']}]")
 
@@ -214,15 +233,19 @@ if __name__ == "__main__":
             logger.debug(f"Monitor {monitor['name']} is disabled. Skipping...")
             continue
 
-        monitor_name = monitor.get("name")
+        # Create monitor_path if not exists
         monitor_path = monitor.get("monitor_path")
+        if (not os.path.exists(monitor_path)):
+            file_path = create_test_data(path=monitor_path, files=[])
+        monitor_name = monitor.get("name")
         destination_path = monitor.get("destination_path")
+        testing_config = monitor.get("testing")
         process_test_result = run_integration_check(
             monitor_name=monitor_name,
             source_path=monitor_path,
             destination_path=destination_path,
             logger=logger, 
-            test_delay=args.test_delay
+            check_delay=testing_config.get("check-delay", args.check_delay)
             )
         process_test_results.append(process_test_result)
 
@@ -231,7 +254,6 @@ if __name__ == "__main__":
     total_failure_count = 0
     total_duration = 0
     for process_test_result in process_test_results:
-        # (testsuite_name, success_count, failure_count, test_results, duration) = process_test_result.get_result()
         total_success_count += process_test_result.success_count
         total_failure_count += process_test_result.failure_count
         total_duration += process_test_result.duration
@@ -242,8 +264,30 @@ if __name__ == "__main__":
         logger.info(f"Failure count   : {process_test_result.failure_count}")
         logger.info(f"Duration        : {process_test_result.duration: .2f} seconds")
         logger.info("==================================================")
-        for result in process_test_result.test_results:
-            logger.info(result)
+       
+        len_test_results = len(process_test_result.test_results)
+        max_width = len(str(len_test_results))
+        for test_result in process_test_result.test_results:
+            test_case_name = test_result.get("test_case_name")
+            test_step_name = test_result.get("test_step_name")
+            test_duration = test_result.get("test_duration")
+            test_counter = test_result.get("test_counter")
+
+            if len(test_step_name) == 0:        
+                test_full_name = test_case_name
+            else:
+                test_full_name = f"{test_case_name} - {test_step_name}"
+            
+            if test_result.get("test_ok"):
+                logger.info(f"success    | {test_counter:>{max_width}} : {test_full_name}")
+                logger.info(f"           |      ==> duration: {test_duration: .2f} s")
+            else:
+                logger.info(f"failure    | {test_counter:>{max_width}} : {test_full_name}")
+                logger.info(f"           |      ==> duration: {test_duration: .2f} s")
+
+                for item in test_result.get("test_output"):
+                    logger.info(f"           |      {item}")
+
         logger.info(f"===> END: test results for [{process_test_result.testsuite_name}] <===")
 
     # Print totals over all monitors
@@ -254,4 +298,3 @@ if __name__ == "__main__":
     logger.info(f"Total failure count   : {total_failure_count}")
     logger.info(f"Total duration        : {total_duration: .2f} seconds")
     logger.info(f"===> End total counts for all monitors <===")
-

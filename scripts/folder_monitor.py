@@ -50,6 +50,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.events import FileSystemEvent, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirCreatedEvent, DirDeletedEvent, DirMovedEvent, DirModifiedEvent, FileClosedEvent
 from rclone_handler import RcloneHandler
 from monitor_handler import MonitorHandler
+from utils import get_unique_logger
 
 
 def configure_pid_file(pid_file_path):
@@ -185,37 +186,7 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
         perform_backup(monitor_config, reason="scheduled")
         time.sleep(interval_seconds)
 
-
-# Create a unique logger instance with a name based on UUID import uuid
-def get_unique_logger(log_config):
-    # Get globally unique logger name
-    logger_name = f"Logger_{uuid.uuid4()}"
-    logger = logging.getLogger(logger_name)
-    
-    # Set the logger to debug level initially for its internal setup messages.
-    # The effective level will also be governed by the root logger's level.
-    logger.setLevel(logging.DEBUG) 
-    log_level_str = log_config.get('log_level', 'INFO').upper() # Default to INFO if not specified
-    level_map = {
-        "DEBUG": logging.DEBUG,
-        "INFO": logging.INFO,
-        "WARNING": logging.WARNING,
-        "ERROR": logging.ERROR,
-        "CRITICAL": logging.CRITICAL
-    }
-    logger.setLevel(level_map.get(log_level_str, logging.NOTSET)) # Use .get with default for robustness
-    return logger
-
-
-# class ConfigHandler:
-#     def __init__(self, monitor_config_path):
-#         with open(monitor_config_path, 'r') as file:
-#             self.config = yaml.safe_load(file)
-
-#     def get_config(self, config_key):
-#         return self.config.get(config_key)
- 
-    
+   
 if __name__ == "__main__":
     print("This is file_monitor script running directly.")
     parser = argparse.ArgumentParser(description="This script monitors changes on files and subfolders in the monitor folder.")
@@ -292,7 +263,7 @@ if __name__ == "__main__":
     # --- End Central Logging Setup ---
 
     # # Get a unique logger instance
-    logger = get_unique_logger(log_config)
+    logger = get_unique_logger(log_level=log_config.get("log_level"))
     logger.debug(f"folder_monitor: setup logging ready. Log level: {log_config.get('log_level', 'INFO').upper()}")
     config_version = monitor_config.get("version")
     logger.debug(f"Configuration version: {config_version}")
@@ -339,10 +310,9 @@ if __name__ == "__main__":
             daemon=True
         )
         thread.start()
-        logger.debug(f"Initiated backup processing for monitor: {monitor['name']}")
         active_threads.append(thread)
 
-    logger.debug("All monitor backup threads initiated.")
+    logger.debug("End processing backups")
     # END: backups
 
     # Keep the script running on the main thread

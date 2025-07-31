@@ -1,3 +1,13 @@
+"""
+Version: 1.0
+
+Test integration script for rclone handler.
+The scipt iterates over monitors configured in a yaml file.
+The same test suite is used for each monitor.
+Test metrics and results are printed after processing all monitors
+This sucess and failure rate is show and the duration of each test for an individual monitor and summarized over all monitors.
+"""
+
 import argparse
 import json
 import os
@@ -9,9 +19,8 @@ from logging.handlers import RotatingFileHandler
 
 # Add the scripts directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../scripts')))
-
-from utils import create_test_data, delete_test_data, get_unique_logger, ProcessTestResult, check_basename_in_path 
 from rclone_handler import RcloneHandler
+from utils import create_test_data, delete_test_data, get_unique_logger, ProcessTestResult, CheckPath
 
 
 def run_integration_check(testsuite_name: str, source_path: str, destination_path: str, rclone_flags: str, logger: logging.Logger) -> ProcessTestResult:
@@ -23,59 +32,54 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
         logger=logger, 
         rclone_flags=rclone_flags
         )
+    check_path = CheckPath(rclone_handler=rclone_handler, check_delay=0)
 
     try:
+        #############################################
         testname = "Test 1: Get Version"
         logger.debug(testname)
         (result_code, result_output) = rclone_handler.get_rclone_version()
         result_output = result_output.replace("\n", " ; ")
         process_test_result.process_result(testname, ("rclone" in result_output.lower()), result_output)
 
+        #############################################
         testname = "Test 2: List Remotes"
         logger.debug(testname)
         (result_code, result_output) = rclone_handler.list_remotes()
         result_output = result_output.replace("\n", " ; ")
         process_test_result.process_result(testname, (result_code == 0), result_output)
 
-        testname = "Test 3: Copy a test file to remote"
+        #############################################
+        testname = "Test 3: Copy file to remote"
         logger.debug(testname)
-        # Create file first 
-        file_path = f"{source_path}/test1.txt"
-        file_path = create_test_data(path=source_path, files="test1.txt")
-        (result_code, result_output) = rclone_handler.copy_file(file_path)
-        process_test_result.process_result(testname, (result_code == 0), result_output)
-
-        testname = "Test 4: Copy file to remote"
-        logger.debug(testname)
-        filename = "test1.txt"
-        file_path = create_test_data(path=source_path, files=filename)
+        file_name = "test1.txt"
+        file_path = create_test_data(path=source_path, files=file_name)
         # Create source file first, otherwise rclone_handler.copy_file may fail
         (result_code, result_output) = rclone_handler.copy_file(file_path)
-        if result_code !=0:
-            process_test_result.process_result(testname, (False), result_output, f"copy file {filename}")
-        else:
-            dst_path = rclone_handler.get_destination_path(path=file_path)
-            parent_folder = os.path.dirname(dst_path)
-            (found, files) = check_basename_in_path(
-                rclone_handler=rclone_handler, 
-                remote_path=parent_folder,
-                basename=filename
+        if result_code == 0:
+            (head, tail) = os.path.split(file_path)
+            dst_path = rclone_handler.get_destination_path(path=head)
+            (found, files) = check_path.file_exists(
+                parent_path=dst_path,
+                file_name=tail
                 )
             
-            process_test_result.process_result(testname, (found), files, f"verify file {filename} on remote")
+            process_test_result.process_result(testname, (found), files, f"verify file {tail} on remote")
+        else:
+            process_test_result.process_result(testname, (False), result_output, f"copy file {file_name}")
 
-        #===
-        testname = "Test 5: Delete a file at remote"
+        #############################################
+        testname = "Test 4: Delete a file at remote"
         logger.debug(testname)
-        filename = "test2.txt"
+        file_name = "test2.txt"
 
         # Create source file first, otherwise rclone_handler.copy_file may fail;
-        file_path = create_test_data(path=source_path, files=filename)
+        file_path = create_test_data(path=source_path, files=file_name)
 
         # Now copy file to destination
         (result_code, result_output) = rclone_handler.copy_file(file_path)
         if result_code !=0:
-            process_test_result.process_result(testname, (False), result_output, f"copy file {filename} to remote")
+            process_test_result.process_result(testname, (False), result_output, f"copy file {file_name} to remote")
         else:
             # Now delete the destination file
             dst_path = rclone_handler.get_destination_path(path=file_path)
@@ -83,17 +87,16 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
 
             # Check if the destination file has indeed been deleted
             parent_folder = os.path.dirname(dst_path)
-            (found, files) = check_basename_in_path(
-                rclone_handler=rclone_handler, 
-                remote_path=parent_folder,
-                basename=filename
+            (found, files) = check_path.file_exists(
+                parent_path=parent_folder,
+                file_name=file_name
                 )
 
             # File should not be found
-            process_test_result.process_result(testname, (not found), files, f"check file {filename} deleted")
+            process_test_result.process_result(testname, (not found), files, f"check file {file_name} deleted")
 
-        #===
-        testname = "Test 6: Create folder with files"
+        #############################################
+        testname = "Test 5: Create folder with files"
         logger.debug(testname)
         test_files = []
         test_files.append("Subfolder1/test1.txt")
@@ -111,19 +114,18 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
         # Check if subfolder has been copied to destination
         # There should be at least 3 files in the subfolder now
         destination_path = rclone_handler.get_destination_path(head)
-        filename = os.path.basename(file_path)
-        (found, files) = check_basename_in_path(
-            rclone_handler=rclone_handler, 
-            remote_path=destination_path,
-            basename=filename
+        file_name = os.path.basename(file_path)
+        (found, files) = check_path.file_exists(
+            parent_path=destination_path,
+            file_name=file_name
             )
 
-        # We should have found filename and there should be at least len(test_files) files
+        # We should have found file_name and there should be at least len(test_files) files
         result = (found and len(files) >= len(test_files))
-        process_test_result.process_result(testname, (result), files, f"found file {filename} on remote")
+        process_test_result.process_result(testname, (result), files, f"found file {file_name} on remote")
 
-        #====
-        testname = "Test 7: Remove folder from remote"
+        #############################################
+        testname = "Test 6: Remove folder from remote"
         logger.debug(testname)
         test_files = []
         test_files.append("Subfolder2/test1.txt")
@@ -141,36 +143,33 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
         # Check if subfolder has been copied to destination
         # There should be at least 3 files in the subfolder now
         destination_path = rclone_handler.get_destination_path(head)
-        filename = os.path.basename(file_path)
-        (found, files) = check_basename_in_path(
-            rclone_handler=rclone_handler, 
-            remote_path=destination_path,
-            basename=filename
+        file_name = os.path.basename(file_path)
+        (found, files) = check_path.file_exists(
+            parent_path=destination_path,
+            file_name=file_name
             )
 
-        # We should have found filename and there should be at least test_file.len files
+        # We should have found file_name and there should be at least test_file.len files
         result = (found and len(files) >= len(test_files))
-        process_test_result.process_result(testname, (result), files, f"check folder {filename} exists")
+        process_test_result.process_result(testname, (result), files, f"check folder {file_name} exists")
 
         # Now delete the destination folder
         head = os.path.dirname(file_path)
         destination_path = rclone_handler.get_destination_path(head)
-        (result_code, result_output) = rclone_handler.delete_folder(destination_path)
+        # Method purge_folder will also delte the top-level folder.
+        (result_code, result_output) = rclone_handler.purge_folder(destination_path)
         process_test_result.process_result(testname, (result_code == 0), result_output, f"delete folder {os.path.basename(head)}")
 
         # Check if folder has been deleted at destination
         # Get parent of subfolder, then check if folder exists
-        parent_folder = os.path.dirname(head)
-        destination_path = rclone_handler.get_destination_path(parent_folder)
-        (found, files) = check_basename_in_path(
-            rclone_handler=rclone_handler, 
-            remote_path=destination_path,
-            basename=head
+        (head, tail) = os.path.split(head)
+        destination_path = rclone_handler.get_destination_path(head)
+        (found, files) = check_path.folder_exists(
+            parent_path=destination_path,
+            folder_name=tail
             )
-        
-        process_test_result.process_result(testname, (not found), result_output, f"check folder {os.path.basename(head)} deleted")
- 
 
+        process_test_result.process_result(testname, (not found), result_output, f"check folder {os.path.basename(head)} deleted")
         logger.debug("\n--- All integration checks done ---")
 
     except Exception as e:
@@ -273,7 +272,6 @@ if __name__ == "__main__":
     total_failure_count = 0
     total_duration = 0
     for process_test_result in process_test_results:
-        # (testsuite_name, success_count, failure_count, test_results, duration) = process_test_result.get_result()
         total_success_count += process_test_result.success_count
         total_failure_count += process_test_result.failure_count
         total_duration += process_test_result.duration
@@ -284,8 +282,30 @@ if __name__ == "__main__":
         logger.info(f"Failure count   : {process_test_result.failure_count}")
         logger.info(f"Duration        : {process_test_result.duration: .2f} seconds")
         logger.info("==================================================")
-        for result in process_test_result.test_results:
-            logger.info(result)
+       
+        len_test_results = len(process_test_result.test_results)
+        max_width = len(str(len_test_results))
+        for test_result in process_test_result.test_results:
+            test_case_name = test_result.get("test_case_name")
+            test_step_name = test_result.get("test_step_name")
+            test_duration = test_result.get("test_duration")
+            test_counter = test_result.get("test_counter")
+
+            if len(test_step_name) == 0:        
+                test_full_name = test_case_name
+            else:
+                test_full_name = f"{test_case_name} - {test_step_name}"
+            
+            if test_result.get("test_ok"):
+                logger.info(f"success    | {test_counter:>{max_width}} : {test_full_name}")
+                logger.info(f"           |      ==> duration: {test_duration: .2f} s")
+            else:
+                logger.info(f"failure    | {test_counter:>{max_width}} : {test_full_name}")
+                logger.info(f"           |      ==> duration: {test_duration: .2f} s")
+
+                for item in test_result.get("test_output"):
+                    logger.info(f"           |      {item}")
+
         logger.info(f"===> END: test results for [{process_test_result.testsuite_name}] <===")
 
     # Print totals over all monitors

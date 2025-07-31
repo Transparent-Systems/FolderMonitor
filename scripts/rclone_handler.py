@@ -144,7 +144,7 @@ class RcloneHandler:
             path_split = source_path.rsplit("/", 1)
             file_name = path_split[1]
             source_folder = path_split[0]
-            destination_path = get_destination_path(path=source_folder)
+            destination_path = self.get_destination_path(path=source_folder)
             return self.run_command(["copy", source_folder, destination_path, "--include", file_name], self.rclone_flags)
 
         return (return_value, result_output)
@@ -186,9 +186,16 @@ class RcloneHandler:
 
     def delete_folder(self, destination_path):
         """
-        Delete destination_path
+        Delete contents inside destination_path
         """
 
         return self.run_command(["delete", "--rmdirs", destination_path], self.rclone_flags)
+
+    def purge_folder(self, destination_path):
+        """
+        Delete contents inside destination_path. Purge will also remove the folder at destination_path
+        """
+
+        return self.run_command(["purge", destination_path], self.rclone_flags)
 
       

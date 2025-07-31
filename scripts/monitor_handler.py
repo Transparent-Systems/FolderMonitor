@@ -1,6 +1,6 @@
 """
-Script: monitor_handler.py
 Version: v1.0.0
+
 Author: John Zoetebier
 Date: 2025-05-10
     Monitors a folder for changes and handles events for files and folders
@@ -17,35 +17,13 @@ Classes:
 
 import os
 import logging
-import uuid
 
-import utils
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from watchdog.events import FileSystemEvent, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirCreatedEvent, DirDeletedEvent, DirMovedEvent, DirModifiedEvent, FileClosedEvent
 from rclone_handler import RcloneHandler
-
-
-# def get_unique_logger(log_level = "INFO"):
-#     """
-#     # Create a unique logger instance with a name based on UUID import uuid
-#     """
-#     # Get globally unique logger name
-#     logger_name = f"Logger_{uuid.uuid4()}"
-#     logger = logging.getLogger(logger_name)
-    
-#     # Set the logger to debug level initially for its internal setup messages.
-#     # The effective level will also be governed by the root logger's level.
-#     level_map = {
-#         "DEBUG": logging.DEBUG,
-#         "INFO": logging.INFO,
-#         "WARNING": logging.WARNING,
-#         "ERROR": logging.ERROR,
-#         "CRITICAL": logging.CRITICAL
-#     }
-#     logger.setLevel(level_map.get(log_level, logging.NOTSET)) # Use .get with default for robustness
-#     return logger
+from utils import CheckPath, get_unique_logger
 
 
 class MyEventHandler(FileSystemEventHandler):
@@ -60,9 +38,11 @@ class MyEventHandler(FileSystemEventHandler):
         >>> event_handler = MyEventHandler(rclone_handler, logger)
     """
 
-    def __init__(self, rclone_handler, logger=None):
+    def __init__(self, rclone_handler: RcloneHandler, logger=logging.Logger):
         super().__init__()
         self.rclone_handler = rclone_handler
+        self.check_path = CheckPath(rclone_handler=rclone_handler)
+
         self.logger = logger if logger else logging.getLogger(__name__)
         self.logger.debug("MyEventHandler initialized")
        
@@ -77,26 +57,34 @@ class MyEventHandler(FileSystemEventHandler):
 
     def on_deleted(self, event):
         self.logger.info(f"on_deleted: src_path='{event.src_path}'") 
-        destination_path = self.rclone_handler.get_destination_path(event.src_path)
+
         if event.is_directory:
             # If the event is a directory deletion, we delete the entire folder
             # This may never happen as watchdog does trigger a FileDeletedEvent for directories
-            self.rclone_handler.delete_folder(destination_path)
-        else:
-            # If the event is a file deletion, we delete the specific file
-            (return_code, return_output)  = self.rclone_handler.delete_file(destination_path)
-            # Watchdog can trigger a FileDeletedEvent for a directory if its contents change,
-            # so we log the return code for debugging purposes
-            # If the return code is 0, the file was successfully deleted
-            if return_code == 0:
-                return
-            
-            self.logger.debug(f"on_deleted: failed to delete {destination_path}, return_output: {return_output}")
-            # watchdog can trigger a FileDeletedEvent for a directory if the directory is deleted
-            # so we log the return code for debugging purposes
-            # Watchdog triggered FileDeletedEvent for deleted folder, so delete folder here.
-            self.rclone_handler.delete_folder(event.src_path)
+            self.rclone_handler.purge_folder(destination_path=destination_path)
+            return
+        
+        # watchdog can trigger a FileDeletedEvent for a directory if the directory is deleted
+        # Check if the destination folder exists
+        (head, tail) = os.path.split(event.src_path)
+        destination_path = self.rclone_handler.get_destination_path(head)
+        (found, files) = self.check_path.folder_exists(
+            parent_path=destination_path,
+            folder_name=tail
+            )
+        
+        if (found):
+            self.rclone_handler.purge_folder(destination_path=destination_path)
+            return
 
+        # If the event is a file deletion, we delete the specific file
+        destination_path = self.rclone_handler.get_destination_path(path=event.src_path)
+        (return_code, return_output)  = self.rclone_handler.delete_file(destination_path=destination_path)
+        if return_code == 0:
+            return
+
+        self.logger.debug(f"on_deleted: failed to delete {destination_path}, return_output: {return_output}")
+        return
 
     def on_modified(self, event):
         """
@@ -112,30 +100,39 @@ class MyEventHandler(FileSystemEventHandler):
             return
 
         self.logger.info(f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}")
-        self.rclone_handler.copy_file(event.src_path)
+        self.rclone_handler.copy_file(source_path=event.src_path)
+        return
 
     def on_closed(self, event) -> None:
         if not os.path.exists(event.src_path):
             return
 
         self.logger.info(f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}")
-        self.rclone_handler.copy_file(event.src_path)
+        self.rclone_handler.copy_file(source_path=event.src_path)
 
 
     def on_moved(self, event):
+        """
+        Handles events where a file or folder is moved
+        The old location is event.src_path
+        The new location is event.dest_path
+        All events are in the Observer folder
+        """
+
         self.logger.info(f"on_moved - renamed from {event.src_path} to {event.dest_path}")
 
         if event.is_directory:
-            # Remove src_path (old folder) from remote
-            self.rclone_handler.delete_folder(event.src_path)
-            # Copy dest_path (new folder) to remote
-            self.rclone_handler.copy_folder(event.dest_path)
+            # Remove old folder from remote
+            destination_path = self.rclone_handler.get_destination_path(path=event.src_path)
+            self.rclone_handler.purge_folder(destination_path=destination_path)
+            # Copy new folder to remote
+            self.rclone_handler.copy_folder(source_path=event.dest_path)
         else:
-            # Remove src_path (old file) from remote
-            destination_path = self.rclone_handler.get_destination_path(event.src_path)
-            self.rclone_handler.delete_file(destination_path)
-            # Copy dest_path (new file) to remote
-            self.rclone_handler.copy_file(event.dest_path)
+            # Remove old file from remote
+            destination_path = self.rclone_handler.get_destination_path(path=event.src_path)
+            self.rclone_handler.delete_file(destination_path=destination_path)
+            # Copy new file to remote
+            self.rclone_handler.copy_file(source_path=event.dest_path)
 
     def __del__(self):
         self.logger.debug("Event handler closed")
@@ -156,7 +153,7 @@ class MonitorHandler:
         self.monitor_enabled = monitor_config.get("enabled")        
         self.observer = None
         # # Create LoggingHandler instance
-        self.logger = utils.get_unique_logger(log_config.get('log_level', 'INFO').upper()) # Default to INFO if not specified)
+        self.logger = get_unique_logger(log_config.get('log_level', 'INFO').upper()) # Default to INFO if not specified)
 
         if monitor_config.get('enabled') is False:
             self.logger.debug("Monitor is disabled. Exiting MonitorHandler __init__")

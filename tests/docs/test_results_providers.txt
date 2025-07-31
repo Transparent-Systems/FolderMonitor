@@ -1,0 +1,97 @@
+2025-07-29 15:52:01,382 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> BEGIN: test results for [local storage] <===
+2025-07-29 15:52:01,382 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ==================================================
+2025-07-29 15:52:01,382 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Number of tests : 11
+2025-07-29 15:52:01,382 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Success count   : 11
+2025-07-29 15:52:01,382 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Failure count   : 0
+2025-07-29 15:52:01,383 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Duration        :  1.46 seconds
+2025-07-29 15:52:01,383 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ==================================================
+2025-07-29 15:52:01,383 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  1 : Test 1: Get Version
+2025-07-29 15:52:01,383 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,383 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  2 : Test 2: List Remotes
+2025-07-29 15:52:01,383 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,384 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  3 : Test 3: Copy a test file to remote
+2025-07-29 15:52:01,385 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.11 s
+2025-07-29 15:52:01,385 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  4 : Test 4: Copy file to remote - verify file test1.txt on remote
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.21 s
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  5 : Test 5: Delete a file at remote - check file test2.txt deleted
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.32 s
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  6 : Test 6: Create folder with files - copy folder Subfolder1
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  7 : Test 6: Create folder with files - found file test3.txt on remote
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,386 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  8 : Test 7: Remove folder from remote - copy folder Subfolder2 to remote
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.11 s
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  9 : Test 7: Remove folder from remote - check folder test3.txt exists
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    | 10 : Test 7: Remove folder from remote - delete folder Subfolder2
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    | 11 : Test 7: Remove folder from remote - check folder Subfolder2 deleted
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,387 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> END: test results for [local storage] <===
+2025-07-29 15:52:01,388 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> BEGIN: test results for [idrive cloud storage] <===
+2025-07-29 15:52:01,388 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ==================================================
+2025-07-29 15:52:01,388 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Number of tests : 11
+2025-07-29 15:52:01,388 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Success count   : 11
+2025-07-29 15:52:01,388 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Failure count   : 0
+2025-07-29 15:52:01,388 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Duration        :  10.83 seconds
+2025-07-29 15:52:01,388 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ==================================================
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  1 : Test 1: Get Version
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.11 s
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  2 : Test 2: List Remotes
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.11 s
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  3 : Test 3: Copy a test file to remote
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.65 s
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  4 : Test 4: Copy file to remote - verify file test1.txt on remote
+2025-07-29 15:52:01,389 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  1.41 s
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  5 : Test 5: Delete a file at remote - check file test2.txt deleted
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  2.34 s
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  6 : Test 6: Create folder with files - copy folder Subfolder1
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  1.18 s
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  7 : Test 6: Create folder with files - found file test3.txt on remote
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  1.03 s
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  8 : Test 7: Remove folder from remote - copy folder Subfolder2 to remote
+2025-07-29 15:52:01,390 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  1.17 s
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  9 : Test 7: Remove folder from remote - check folder test3.txt exists
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  1.02 s
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    | 10 : Test 7: Remove folder from remote - delete folder Subfolder2
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  1.15 s
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    | 11 : Test 7: Remove folder from remote - check folder Subfolder2 deleted
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.64 s
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> END: test results for [idrive cloud storage] <===
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> BEGIN: test results for [google drive cloud storage] <===
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ==================================================
+2025-07-29 15:52:01,391 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Number of tests : 11
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Success count   : 11
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Failure count   : 0
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Duration        :  183.01 seconds
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ==================================================
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  1 : Test 1: Get Version
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  2 : Test 2: List Remotes
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  0.10 s
+2025-07-29 15:52:01,392 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  3 : Test 3: Copy a test file to remote
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  4.19 s
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  4 : Test 4: Copy file to remote - verify file test1.txt on remote
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  44.63 s
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  5 : Test 5: Delete a file at remote - check file test2.txt deleted
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  25.51 s
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  6 : Test 6: Create folder with files - copy folder Subfolder1
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  38.35 s
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  7 : Test 6: Create folder with files - found file test3.txt on remote
+2025-07-29 15:52:01,393 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  2.75 s
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  8 : Test 7: Remove folder from remote - copy folder Subfolder2 to remote
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  5.97 s
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    |  9 : Test 7: Remove folder from remote - check folder test3.txt exists
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  4.97 s
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    | 10 : Test 7: Remove folder from remote - delete folder Subfolder2
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  53.88 s
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - success    | 11 : Test 7: Remove folder from remote - check folder Subfolder2 deleted
+2025-07-29 15:52:01,394 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 -            |      ==> duration:  2.55 s
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> END: test results for [google drive cloud storage] <===
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> Total counts for all monitors <===
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ==================================================
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Total number of tests : 33
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Total success count   : 33
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Total failure count   : 0
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - Total duration        :  195.30 seconds
+2025-07-29 15:52:01,395 - INFO - Logger_b5f7670c-2e41-480d-a090-1427c388a301 - ===> End total counts for all monitors <===
