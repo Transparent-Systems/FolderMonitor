@@ -21,6 +21,10 @@ After deleting test1.txt, the only thing remaining is: e2:mybucket
 2)
 The behaviour for a file like "rclone ls <file>" is different between local storage and remote storage.
 To get a more reliable check if a file exists on both local and remote storage we use "rclone lsjson <parent-folder>
+3)
+One or maore integratin tests may fail if check_delay is not high enough for the monitor tested.
+You can check this by looking at the console log where folder_monitor.py runs
+If the console log stil shows log lines after this integration test has ended, than increase check-delay
 """
 
 import argparse
@@ -55,6 +59,7 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
     try:
         #####################################
         testname = "Test 1 : Create new file"
+        logger.debug(f"==> {testname}")
         filename = "test1.txt"
         filepath = create_test_data(path=source_path, files=filename)
         (head, tail) = os.path.split(filepath)
@@ -64,6 +69,7 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
     
         ######################################
         testname = "Test 2 : Delete a file"
+        logger.debug(f"==> {testname}")
         filename = "test1.txt"
         filepath = delete_test_data(path=source_path, files=filename)
         logger.debug(f"Deleted source file : '{filepath}'")
@@ -74,28 +80,43 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
 
         ######################################
         testname = "Test 3 : Create subfolder with files. Check last file only"
+        logger.debug(f"==> {testname}")
         files = []
-        files.append("Subfolder1/test1.txt")
-        files.append("Subfolder1/test2.txt")
-        files.append("Subfolder1/test3.txt")
+        files.append("Subfolder3/test1.txt")
+        files.append("Subfolder3/test2.txt")
+        files.append("Subfolder3/test3.txt")
         filepath = create_test_data(path=source_path, files=files)
         (head, tail) = os.path.split(filepath)
         dst_path = rclone_handler.get_destination_path(path=head)
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process_result(testname, (found), files)
 
-        ######################################
+        #####################################
         testname = "Test 4 : Delete subfolder."
+        logger.debug(f"==> {testname}")
         files = []
-        files.append("Subfolder1")
-        filepath = delete_test_data(path=source_path, files=files)
+        files.append("Subfolder4/test1")
+        filepath_files = create_test_data(path=source_path, files=files)
+        filepath = delete_test_data(path=source_path, files=["Subfolder4"])
         (head, tail) = os.path.split(filepath)
         dst_path = rclone_handler.get_destination_path(path=head)
+        # Check folder exists
         (found, files) = check_path.folder_exists(parent_path=dst_path, folder_name=tail)
-        process_test_result.process_result(testname, (not found), files)
+
+        if found:
+            # This can happen on local storage
+            # Subfolder must be empty
+            (head, tail) = os.path.split(filepath_files)
+            dst_path = rclone_handler.get_destination_path(path=head)
+            (found, files) = check_path.file_exists(parent_path=head, file_name=tail)
+            process_test_result.process_result(testname, (not found), files, f"verify file does not exist: {tail}")
+        else:
+            process_test_result.process_result(testname, (not found), files, f"verify folder does not exist: {head}")
+
 
         ######################################
         testname = "Test 5 : Rename file"
+        logger.debug(f"==> {testname}")
         files ="old_file.txt"
         old_file_path = create_test_data(path=source_path, files=files)
         # Rename the file
@@ -119,6 +140,7 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
 
         ######################################
         testname = "Test 6 : Rename subfolder"
+        logger.debug(f"==> {testname}")
         files = []
         files.append("Subfolder-old/test1.txt")
         files.append("Subfolder-old/test2.txt")

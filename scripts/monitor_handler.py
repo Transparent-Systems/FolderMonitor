@@ -58,33 +58,19 @@ class MyEventHandler(FileSystemEventHandler):
     def on_deleted(self, event):
         self.logger.info(f"on_deleted: src_path='{event.src_path}'") 
 
+        # watchdog v6.0.0 never triggers a DirDeletedEvent. This test is just for future use.
         if event.is_directory:
             # If the event is a directory deletion, we delete the entire folder
-            # This may never happen as watchdog does trigger a FileDeletedEvent for directories
-            self.rclone_handler.purge_folder(destination_path=destination_path)
-            return
-        
-        # watchdog can trigger a FileDeletedEvent for a directory if the directory is deleted
-        # Check if the destination folder exists
-        (head, tail) = os.path.split(event.src_path)
-        destination_path = self.rclone_handler.get_destination_path(head)
-        (found, files) = self.check_path.folder_exists(
-            parent_path=destination_path,
-            folder_name=tail
-            )
-        
-        if (found):
             self.rclone_handler.purge_folder(destination_path=destination_path)
             return
 
-        # If the event is a file deletion, we delete the specific file
-        destination_path = self.rclone_handler.get_destination_path(path=event.src_path)
-        (return_code, return_output)  = self.rclone_handler.delete_file(destination_path=destination_path)
-        if return_code == 0:
-            return
-
-        self.logger.debug(f"on_deleted: failed to delete {destination_path}, return_output: {return_output}")
+        # After all files have been delete on Object Storage, all emptry folders will be gone.
+        # So it is possible that the delete may fail.
+        # Testing if the directory exist is time consuming, so we skip it and accept erroneous error message in the log
+        destination_path = self.rclone_handler.get_destination_path(event.src_path)
+        (return_code, return_output) = self.rclone_handler.delete_file(destination_path=destination_path)
         return
+
 
     def on_modified(self, event):
         """

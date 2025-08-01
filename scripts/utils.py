@@ -68,7 +68,7 @@ def create_test_data(path: str, files: list[str] | str):
         file_path = os.path.join(path, filename)
         head = os.path.dirname(file_path)
         try:
-            os.makedirs(head, exist_ok=True)
+            os.makedirs(name=head, exist_ok=True)
         except OSError as e:
             sys.exit(1)
 
@@ -178,6 +178,58 @@ class CheckPath():
         """
         self.rclone_handler = rclone_handler
         self.check_delay = check_delay
+
+
+    def basename_exists(self, parent_path: str, base_name: str) -> tuple[bool, bool, list]:
+        """Check if folder exists.
+
+        Args:
+            parent_path (str): folder containing base_name
+            base_name (str): the base_name we check to exist
+
+        Returns:
+            tuple (bool, bool, list): A tuple indicating if the base_name exists, if it is a directory and a list of some data.
+                                      The list of data can contain a list of files / folders or an error message
+        """
+
+        time.sleep(self.check_delay)  # Sleep before checking
+
+        # Construct the rclone lsjson command
+        rclone_command = [
+            "lsjson",
+            parent_path,
+            "--max-depth", "1"
+        ]
+
+        (result_code, result_output) = self.rclone_handler.run_command(rclone_command)
+
+        if result_code == 0 and result_output:
+            try:
+                json_output = json.loads(result_output)
+                found_files = []
+                for item in json_output:
+                    # The 'Path' field in lsjson output is relative to the queried directory.
+                    # For --max-depth 1, it will usually be just the filename.
+                    item_path = item.get('Path')
+                    item_isdir = item.get('IsDir')
+                    if item_path:
+                        found_files.append(item_path)
+                        # Check if item is found and is a directory
+                        if item_path == base_name:
+                            if item_isdir:
+                                return True, True, found_files  # Directory
+                            else:
+                                return True, False, found_files # File
+                return False, False, found_files # File not found in the list
+            except json.JSONDecodeError:
+                return False, False, [f"Error: Could not decode JSON output: {result_output}"]
+        elif result_code != 0:
+            # If rclone itself returned an error (e.g., remote_path doesn't exist)
+            return False, False, [f"Rclone command failed when listing '{parent_path}'."]
+        else:
+            # result_output is empty, meaning no files were found or directory is empty
+            return False, False, []
+
 
     def folder_exists(self, parent_path: str, folder_name: str) -> tuple[bool, list]:
         """Check if folder exists.

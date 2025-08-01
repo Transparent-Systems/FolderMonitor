@@ -36,22 +36,67 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
 
     try:
         #############################################
+        testname = "Test 0: Testing utils"
+        logger.debug(f"==> {testsuite_name} -> {testname}")
+        file_name = "Subfolder1/test1.txt"
+        file_path = create_test_data(path=source_path, files=file_name)
+        # Create source file first, otherwise rclone_handler.copy_file may fail
+        (result_code, result_output) = rclone_handler.copy_file(file_path)
+        if result_code == 0:
+            (head, tail) = os.path.split(file_path)
+            dst_path = rclone_handler.get_destination_path(path=head)
+            (found, isdir, files) = check_path.basename_exists(
+                base_name=tail,
+                parent_path=dst_path
+                )
+
+            # Check this is a file            
+            process_test_result.process_result(testname, (found and not isdir), files, f"verify this is a file: {tail}")
+
+            # Now check a file that does not exist
+            tail = "file-does-not-exists.txt"
+            (found, isdir, files) = check_path.basename_exists(
+                base_name=tail,
+                parent_path=dst_path
+                )
+            process_test_result.process_result(testname, (not found), files, f"verify file does not exist: {tail}")
+
+            # Now check Subfolder1 has been created as well
+            (head, tail) = os.path.split(head)
+            dst_path = rclone_handler.get_destination_path(path=head)
+            (found, isdir, files) = check_path.basename_exists(
+                base_name=tail,
+                parent_path=dst_path
+                )
+            process_test_result.process_result(testname, (found and isdir), files, f"verify this is a directory: {tail}")
+
+            # Now check for a non-existent folder
+            tail = "folder_does_not_exist"
+            (found, isdir, files) = check_path.basename_exists(
+                base_name=tail,
+                parent_path=dst_path
+                )
+            process_test_result.process_result(testname, (not found), files, f"verify directory does not exist: {tail}")
+        else:
+            process_test_result.process_result(testname, (False), result_output, f"copy file {file_name}")
+
+        #############################################
         testname = "Test 1: Get Version"
-        logger.debug(testname)
+        logger.debug(f"==> {testsuite_name} -> {testname}")
         (result_code, result_output) = rclone_handler.get_rclone_version()
         result_output = result_output.replace("\n", " ; ")
         process_test_result.process_result(testname, ("rclone" in result_output.lower()), result_output)
 
         #############################################
         testname = "Test 2: List Remotes"
-        logger.debug(testname)
+        logger.debug(f"==> {testsuite_name} -> {testname}")
         (result_code, result_output) = rclone_handler.list_remotes()
         result_output = result_output.replace("\n", " ; ")
         process_test_result.process_result(testname, (result_code == 0), result_output)
 
         #############################################
         testname = "Test 3: Copy file to remote"
-        logger.debug(testname)
+        logger.debug(f"==> {testsuite_name} -> {testname}")
         file_name = "test1.txt"
         file_path = create_test_data(path=source_path, files=file_name)
         # Create source file first, otherwise rclone_handler.copy_file may fail
@@ -70,7 +115,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
 
         #############################################
         testname = "Test 4: Delete a file at remote"
-        logger.debug(testname)
+        logger.debug(f"==> {testsuite_name} -> {testname}")
         file_name = "test2.txt"
 
         # Create source file first, otherwise rclone_handler.copy_file may fail;
@@ -97,7 +142,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
 
         #############################################
         testname = "Test 5: Create folder with files"
-        logger.debug(testname)
+        logger.debug(f"==> {testsuite_name} -> {testname}")
         test_files = []
         test_files.append("Subfolder1/test1.txt")
         test_files.append("Subfolder1/test2.txt")
@@ -126,7 +171,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
 
         #############################################
         testname = "Test 6: Remove folder from remote"
-        logger.debug(testname)
+        logger.debug(f"==> {testsuite_name} -> {testname}")
         test_files = []
         test_files.append("Subfolder2/test1.txt")
         test_files.append("Subfolder2/test2.txt")

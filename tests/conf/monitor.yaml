@@ -39,17 +39,17 @@ monitors:
   # Backend flags can be added to the rclone configuration as well. This is usually more convenient
   # While testing folder_monitor ensure each monitor has a unique monitor_path so each monitor test will trigger 1 event in 1 monitor only
   
-  # - name: "local storage"
-  #   enabled: true
-  #   monitor_path: "data/Source/local-storage"
-  #   destination_path: "data/Destination/local-storage"
-  #   rclone_flags: "--transfers, 4"
-  #   testing:
-  #     check-delay: 1
-  #   backup:
-  #     enabled: false
-  #     interval: "0s"
-  #     copy_mode: "copy"
+  - name: "local storage"
+    enabled: true
+    monitor_path: "data/Source/local-storage"
+    destination_path: "data/Destination/local-storage"
+    rclone_flags: "--transfers, 4"
+    testing:
+      check-delay: 1
+    backup:
+      enabled: false
+      interval: "0s"
+      copy_mode: "copy"
 
   - name: "idrive-cloud-storage"
     enabled: true
@@ -58,10 +58,10 @@ monitors:
     rclone_flags: "--transfers, 4, --s3-no-check-bucket"
     testing:
       check-delay: 3
-    # backup:
-    #   enabled: false
-    #   interval: "0s"
-    #   copy_mode: "copy"
+    backup:
+      enabled: false
+      interval: "0s"
+      copy_mode: "copy"
 
   - name: "backblaze-cloud-storage"
     enabled: true
@@ -69,11 +69,11 @@ monitors:
     destination_path: "b2:test-foldermonitor/Cloud/backblaze-cloud-storage"
     rclone_flags: "--transfers, 4, --s3-no-check-bucket"
     testing:
-      check-delay: 8
-    # backup:
-    #   enabled: false
-    #   interval: "0s"
-    #   copy_mode: "copy"
+      check-delay: 5
+    backup:
+      enabled: false
+      interval: "0s"
+      copy_mode: "copy"
 
   - name: "cloudflare-cloud-storage"
     enabled: true
@@ -81,23 +81,11 @@ monitors:
     destination_path: "r2:test-foldermonitor/Cloud/cloudflare-cloud-storage"
     rclone_flags: "--transfers, 4, --s3-no-check-bucket"
     testing:
-      check-delay: 1
-    # backup:
-    #   enabled: false
-    #   interval: "0s"
-    #   copy_mode: "copy"
-
-  - name: "google drive cloud storage - generic credentials"
-    enabled: true
-    monitor_path: "data/Source/Cloud/google-drive-generic"
-    destination_path: "drive:test-foldermonitor/Cloud/google-drive-generic"
-    rclone_flags: "--transfers, 4, --fast-list"
-    testing:
-      check-delay: 10
-    # backup:
-    # enabled: false
-    # interval: "0s"
-    # copy_mode: "copy"
+      check-delay: 3
+    backup:
+      enabled: false
+      interval: "0s"
+      copy_mode: "copy"
 
   - name: "google drive cloud storage - personal credentials"
     enabled: true
@@ -106,8 +94,21 @@ monitors:
     rclone_flags: "--transfers, 4, --fast-list"
     testing:
       check-delay: 10
-    # backup:
-    #   enabled: false
-    #   interval: "0s"
-    #   copy_mode: "copy"
+    backup:
+      enabled: false
+      interval: "0s"
+      copy_mode: "copy"
+
+  # - name: "google drive cloud storage - generic credentials"
+  #   enabled: true
+  #   monitor_path: "data/Source/Cloud/google-drive-generic"
+  #   destination_path: "drive:test-foldermonitor/Cloud/google-drive-generic"
+  #   rclone_flags: "--transfers, 4, --fast-list"
+  #   testing:
+  #     check-delay: 20
+  #   # backup:
+  #   # enabled: false
+  #   # interval: "0s"
+  #   # copy_mode: "copy"
+
 
