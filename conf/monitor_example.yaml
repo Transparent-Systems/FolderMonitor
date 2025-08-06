@@ -38,8 +38,8 @@ monitors:
 
   - name: "cloud to drive"
     enabled: true
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test1"
-    destination_path: "drive:test-foldermonitor/Cloud/Test1"
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Test1"
+    destination_path: "drive:test-foldermonitor/Test1"
     rclone_flags: "--transfers, 8"
     backup:
       enabled: true
@@ -48,8 +48,8 @@ monitors:
 
   - name: "cloud to e2"
     enabled: true
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test2"
-    destination_path: "e2:test-foldermonitor/Cloud/Test2"
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Test2"
+    destination_path: "e2:test-foldermonitor/Test2"
     rclone_flags: "--transfers, 8, --s3-no-check-bucket"
     backup:
       enabled: true

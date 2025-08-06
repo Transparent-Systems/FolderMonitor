@@ -66,9 +66,27 @@ class MyEventHandler(FileSystemEventHandler):
 
         # After all files have been delete on Object Storage, all emptry folders will be gone.
         # So it is possible that the delete may fail.
-        # Testing if the directory exist is time consuming, so we skip it and accept erroneous error message in the log
+        # We can test if destination directory exists in case backend type is local
         destination_path = self.rclone_handler.get_destination_path(event.src_path)
-        (return_code, return_output) = self.rclone_handler.delete_file(destination_path=destination_path)
+
+        if self.rclone_handler.backend_type is None:
+            (head, tail) = os.path.split(destination_path)
+            (found, isdir, result_output) = self.check_path.basename_exists(
+                parent_path=head,
+                base_name=tail
+            )
+
+            # If base_name is not found than return
+            if not found:
+                return
+
+            if isdir:
+                (return_code, return_output) = self.rclone_handler.purge_folder(destination_path=destination_path)
+            else:
+                (return_code, return_output) = self.rclone_handler.delete_file(destination_path=destination_path)
+        else:
+            (return_code, return_output) = self.rclone_handler.delete_file(destination_path=destination_path)
+
         return
 
 

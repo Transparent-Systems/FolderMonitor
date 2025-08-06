@@ -38,8 +38,8 @@ monitors:
 
   - name: "cloud to drive"
     enabled: true
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test1"
-    destination_path: "drive:test-foldermonitor/Cloud/Test1"
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Test1"
+    destination_path: "drive:test-foldermonitor/Test1"
     rclone_flags: "--transfers, 8"
     backup:
       enabled: false
@@ -48,8 +48,8 @@ monitors:
 
   - name: "cloud to e2"
     enabled: true
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Test2"
-    destination_path: "e2:test-foldermonitor/Cloud/Test2"
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Test2"
+    destination_path: "e2:test-foldermonitor/Test2"
     rclone_flags: "--transfers, 8, --s3-no-check-bucket"
     backup:
       enabled: false
@@ -58,8 +58,8 @@ monitors:
 
   # - name: "Videos"
   #   enabled: true
-  #   monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/Videos"
-  #   destination_path: "e2:test-foldermonitor/Cloud/Videos"
+  #   monitor_path: "D:/Development/FolderMonitor/data/Source/Videos"
+  #   destination_path: "e2:test-foldermonitor/Videos"
   #   backup:
   #     enabled: false
   #     interval: "0s"
@@ -68,8 +68,8 @@ monitors:
 
   # - name: "cloud to e2 versioned"
   #   enabled: true
-  #   monitor_path: "D:/Development/FolderMonitor/data/Source/Cloud/versioned"
-  #   destination_path: "e2:test-foldermonitor-versioned/Cloud/versioned"
+  #   monitor_path: "D:/Development/FolderMonitor/data/Source/versioned"
+  #   destination_path: "e2:test-foldermonitor-versioned/versioned"
   #   rclone_flags: "--transfers, 16, --s3-no-check-bucket"
   #   backup:
   #     enabled: false

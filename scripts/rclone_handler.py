@@ -24,6 +24,7 @@ Usage:
 - The class is designed to be used in conjunction with a folder monitoring script.
 """
 
+import json
 import logging
 import subprocess
 import sys
@@ -42,6 +43,36 @@ class RcloneHandler:
         The class has been tested with Python >= 3.10 and rclone v1.64.2.
         Rclone handler copy, delete and sync oprations always use the same root source_path and root destination_path.
     """
+    _rclone_config_json = None
+
+    @classmethod
+    def _load_rclone_config(cls, logger: logging.Logger) -> dict:
+        """A class method to handle the loading of the configuration."""
+        if cls._rclone_config_json is None:
+            print("Loading rclone config...")
+
+            try:
+                rclone_command = [rclone_path, "config", "dump"]
+                logger.debug(f"Running command: {' '.join(rclone_command)}")
+                result_process = subprocess.run(rclone_command, capture_output=True, text=True, check=True)
+                # Check if the command was successful
+
+                if result_process.returncode == 00:
+                    config_data = result_process.stdout.strip()
+                else:
+                    config_data = {}
+            except subprocess.CalledProcessError as e:
+                logger.error(e.stderr)
+                logger.error("Error: rclone config not found.")
+                config_data = {}
+
+
+            json_output = json.loads(config_data)
+            cls._rclone_config_json = json_output
+        
+
+        return cls._rclone_config_json
+
 
     def __init__(self, base_destination_path: str, base_source_path: str, logger: logging.Logger, rclone_flags: str):
         """
@@ -58,7 +89,18 @@ class RcloneHandler:
         base_source_path.replace("\\", "/") # Ensure forward slashes for compatibility with rclone   
         self.base_source_path.rstrip("/") # Ensure no trailing slash
         self.rclone_flags = rclone_flags
+        # Call class method to get rclone config in jason format
+        self.rclone_config = self._load_rclone_config(logger)
+        # Derive backend name from base_destiation_path
+        backend_name = base_destination_path.split(':')[0]
+        backend_config = self.rclone_config.get(backend_name)
+        # store type as instanve variable
+        if backend_config is None:
+            self.backend_type = None
+        else:
+            self.backend_type = backend_config.get("type")
 
+        return
 
     def run_command(self, rclone_command_parms: list[str] | str, additional_arguments=""):
         """
