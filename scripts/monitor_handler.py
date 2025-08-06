@@ -69,7 +69,7 @@ class MyEventHandler(FileSystemEventHandler):
         # We can test if destination directory exists in case backend type is local
         destination_path = self.rclone_handler.get_destination_path(event.src_path)
 
-        if self.rclone_handler.backend_type is None:
+        if self.rclone_handler.backend_type is None or self.rclone_handler.backend_type in ["ftp"]:
             (head, tail) = os.path.split(destination_path)
             (found, isdir, result_output) = self.check_path.basename_exists(
                 parent_path=head,

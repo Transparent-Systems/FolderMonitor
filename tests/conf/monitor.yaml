@@ -52,17 +52,29 @@ monitors:
   #     interval: "0s"
   #     copy_mode: "copy"
 
-  - name: "idrive-cloud-storage"
+  - name: "nas1 ftp storage"
     enabled: true
-    monitor_path: "data/Source/idrive-cloud-storage"
-    destination_path: "e2:test-foldermonitor/idrive-cloud-storage"
-    rclone_flags: "--transfers, 4, --s3-no-check-bucket"
+    monitor_path: "data/Source/nas1-ftp-storage"
+    destination_path: "nas1-ftp:foldermonitor"
+    rclone_flags: "--transfers, 4"
     testing:
-      check-delay: 3
+      check-delay: 1
     backup:
       enabled: false
       interval: "0s"
       copy_mode: "copy"
+
+  # - name: "idrive-cloud-storage"
+  #   enabled: true
+  #   monitor_path: "data/Source/idrive-cloud-storage"
+  #   destination_path: "e2:test-foldermonitor/idrive-cloud-storage"
+  #   rclone_flags: "--transfers, 4, --s3-no-check-bucket"
+  #   testing:
+  #     check-delay: 3
+  #   backup:
+  #     enabled: false
+  #     interval: "0s"
+  #     copy_mode: "copy"
 
   # - name: "backblaze-cloud-storage"
   #   enabled: true
