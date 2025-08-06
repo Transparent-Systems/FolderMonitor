@@ -89,9 +89,9 @@ class RcloneHandler:
         base_source_path.replace("\\", "/") # Ensure forward slashes for compatibility with rclone   
         self.base_source_path.rstrip("/") # Ensure no trailing slash
         self.rclone_flags = rclone_flags
-        # Call class method to get rclone config in jason format
+        # Call class method to get rclone config in json format
         self.rclone_config = self._load_rclone_config(logger)
-        # Derive backend name from base_destiation_path
+        # Derive backend name from base_destination_path
         backend_name = base_destination_path.split(':')[0]
         backend_config = self.rclone_config.get(backend_name)
         # store type as instance variable
