@@ -29,7 +29,7 @@ monitors:
   #   enabled: true | false # if true, the backup will be started
   #   interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
   #                 #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one-off backup.
-  #   copy_mode: "sync | copy" 
+  #   backup_mode: "sync | copy" 
   #               sync will delete files in destination_path that are not in source folder. 
   #               copy will not delete files in destination_path that are not in source folder.
   
@@ -40,29 +40,29 @@ monitors:
   # Backend flags can be added to the rclone configuration as well. This is usually more convenient
   # While testing folder_monitor ensure each monitor has a unique monitor_path so each monitor test will trigger 1 event in 1 monitor only
   
-  # - name: "local storage"
-  #   enabled: true
-  #   monitor_path: "data/Source/local-storage"
-  #   destination_path: "data/Destination/local-storage"
-  #   rclone_flags: "--transfers, 4"
-  #   testing:
-  #     check-delay: 1
-  #   backup:
-  #     enabled: false
-  #     interval: "0s"
-  #     copy_mode: "copy"
-
-  - name: "nas1 ftp storage"
+  - name: "local storage"
     enabled: true
-    monitor_path: "data/Source/nas1-ftp-storage"
-    destination_path: "nas1-ftp:foldermonitor"
+    monitor_path: "data/Source/local-storage"
+    destination_path: "data/Destination/local-storage"
     rclone_flags: "--transfers, 4"
     testing:
       check-delay: 1
     backup:
       enabled: false
       interval: "0s"
-      copy_mode: "copy"
+      backup_mode: "copy"
+
+  # - name: "nas1 ftp storage"
+  #   enabled: true
+  #   monitor_path: "data/Source/nas1-ftp-storage"
+  #   destination_path: "nas1-ftp:foldermonitor"
+  #   rclone_flags: "--transfers, 4"
+  #   testing:
+  #     check-delay: 1
+  #   backup:
+  #     enabled: false
+  #     interval: "0s"
+  #     backup_mode: "copy"
 
   # - name: "idrive-cloud-storage"
   #   enabled: true
@@ -74,7 +74,7 @@ monitors:
   #   backup:
   #     enabled: false
   #     interval: "0s"
-  #     copy_mode: "copy"
+  #     backup_mode: "copy"
 
   # - name: "backblaze-cloud-storage"
   #   enabled: true
@@ -86,7 +86,7 @@ monitors:
   #   backup:
   #     enabled: false
   #     interval: "0s"
-  #     copy_mode: "copy"
+  #     backup_mode: "copy"
 
   # - name: "cloudflare-cloud-storage"
   #   enabled: true
@@ -98,7 +98,7 @@ monitors:
   #   backup:
   #     enabled: false
   #     interval: "0s"
-  #     copy_mode: "copy"
+  #     backup_mode: "copy"
 
   # - name: "google drive cloud storage - personal credentials"
   #   enabled: true
@@ -110,7 +110,7 @@ monitors:
   #   backup:
   #     enabled: false
   #     interval: "0s"
-  #     copy_mode: "copy"
+  #     backup_mode: "copy"
 
   # - name: "google drive cloud storage - generic credentials"
   #   enabled: true
@@ -122,6 +122,6 @@ monitors:
     # backup:
   #   # enabled: false
   #   # interval: "0s"
-  #   # copy_mode: "copy"
+  #   # backup_mode: "copy"
 
 
