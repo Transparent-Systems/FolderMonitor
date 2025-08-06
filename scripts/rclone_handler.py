@@ -94,7 +94,7 @@ class RcloneHandler:
         # Derive backend name from base_destiation_path
         backend_name = base_destination_path.split(':')[0]
         backend_config = self.rclone_config.get(backend_name)
-        # store type as instanve variable
+        # store type as instance variable
         if backend_config is None:
             self.backend_type = None
         else:
