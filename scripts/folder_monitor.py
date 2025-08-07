@@ -136,11 +136,13 @@ def perform_backup(monitor_config, reason="scheduled"):
         rclone_handler.sync_folder(
             source_path=monitor_config["monitor_path"]
         )
+        logger.debug(f"Ready syncing folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")
     else:  # Default to "copy"
         logger.debug(f"Copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")
         rclone_handler.copy_folder(
             source_path=monitor_config["monitor_path"]
         )
+        logger.debug(f"Ready copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")
 
     rclone_handler = None # Clean up the rclone handler
 

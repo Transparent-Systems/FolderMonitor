@@ -36,7 +36,7 @@ monitors:
   # --dry-run: This is for testing purposes only. Nothing will change in the remote storage
   # Backend flags can be added to the rclone configuration as well. This is usually more convenient
 
-  - name: "cloud to drive"
+  - name: "monitor to drive"
     enabled: true
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test1"
     destination_path: "drive:test-foldermonitor/Test1"
@@ -46,7 +46,7 @@ monitors:
       interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
       backup_mode: "copy"
 
-  - name: "cloud to e2"
+  - name: "monitor to e2"
     enabled: true
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test2"
     destination_path: "e2:test-foldermonitor/Test2"
@@ -56,17 +56,7 @@ monitors:
       interval: "0s"
       backup_mode: "copy"
 
-  # - name: "Videos"
-  #   enabled: true
-  #   monitor_path: "D:/Development/FolderMonitor/data/Source/Videos"
-  #   destination_path: "e2:test-foldermonitor/Videos"
-  #   backup:
-  #     enabled: false
-  #     interval: "0s"
-  #     backup_mode: "copy"
-
-
-  # - name: "cloud to e2 versioned"
+  # - name: "monitor to e2 versioned"
   #   enabled: true
   #   monitor_path: "D:/Development/FolderMonitor/data/Source/versioned"
   #   destination_path: "e2:test-foldermonitor-versioned/versioned"
