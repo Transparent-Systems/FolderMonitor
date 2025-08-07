@@ -26,7 +26,7 @@ monitors:
   #   enabled: true | false # if true, the backup will be started
   #   interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
   #                 #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one-off backup.
-  #   backup_mode: "sync | copy" 
+  #   mode: "sync | copy" 
   #               sync will delete files in destination_path that are not in source folder. 
   #               copy will not delete files in destination_path that are not in source folder.
   
@@ -44,7 +44,7 @@ monitors:
     backup:
       enabled: false
       interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-      backup_mode: "copy"
+      mode: "copy"
 
   - name: "monitor to e2"
     enabled: true
@@ -54,7 +54,7 @@ monitors:
     backup:
       enabled: false
       interval: "0s"
-      backup_mode: "copy"
+      mode: "copy"
 
   # - name: "monitor to e2 versioned"
   #   enabled: true
@@ -64,5 +64,5 @@ monitors:
   #   backup:
   #     enabled: false
   #     interval: "0s"
-  #     backup_mode: "copy"
+  #     mode: "copy"
    

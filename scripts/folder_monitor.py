@@ -118,20 +118,20 @@ def perform_backup(monitor_config, reason="scheduled"):
     monitor_name = monitor_config["name"]
     logger.debug(f"Performing {reason} backup for monitor [{monitor_name}] at {time.ctime()} for: {monitor_config['monitor_path']} -> {monitor_config['destination_path']}")
     # Use rclone_handler for backup operations
-    # Check if backup_mode is copy or sync
+    # Check if mode is copy or sync
     backup_config = monitor_config.get("backup", {})
-    backup_mode = backup_config.get("backup_mode", "copy")  # Default to "copy" if not specified
+    mode = backup_config.get("mode", "copy")  # Default to "copy" if not specified
 
-    if backup_mode not in ["copy", "sync"]:
-        logger.debug(f"Invalid backup_mode '{backup_mode}' for monitor '{monitor_name}'. Defaulting to 'copy'.")
-        backup_mode = "copy"
+    if mode not in ["copy", "sync"]:
+        logger.debug(f"Invalid mode '{mode}' for monitor '{monitor_name}'. Defaulting to 'copy'.")
+        mode = "copy"
 
     destination_path = monitor_config.get("destination_path")
     monitor_path = monitor_config.get("monitor_path")
     rclone_flags = monitor_config.get("rclone_flags", "")
     rclone_handler = RcloneHandler(destination_path, monitor_path, logger, rclone_flags)
 
-    if backup_mode == "sync":
+    if mode == "sync":
         logger.debug(f"Syncing folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}")
         rclone_handler.sync_folder(
             source_path=monitor_config["monitor_path"]
