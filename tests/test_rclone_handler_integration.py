@@ -39,8 +39,8 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
         testname = "Test 0: Testing utils"
         logger.debug(f"==> {testsuite_name} -> {testname}")
         file_name = "Subfolder1/test1.txt"
-        file_path = create_test_data(path=source_path, files=file_name)
         # Create source file first, otherwise rclone_handler.copy_file may fail
+        file_path = create_test_data(path=source_path, files=file_name)
         (result_code, result_output) = rclone_handler.copy_file(file_path)
         if result_code == 0:
             (head, tail) = os.path.split(file_path)
@@ -51,7 +51,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
                 )
 
             # Check this is a file            
-            process_test_result.process_result(testname, (found and not isdir), files, f"verify this is a file: {tail}")
+            process_test_result.process(testname, (found and not isdir), files, f"verify this is a file: {tail}")
 
             # Now check a file that does not exist
             tail = "file-does-not-exists.txt"
@@ -59,7 +59,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
                 base_name=tail,
                 parent_path=dst_path
                 )
-            process_test_result.process_result(testname, (not found), files, f"verify file does not exist: {tail}")
+            process_test_result.process(testname, (not found), files, f"verify file does not exist: {tail}")
 
             # Now check Subfolder1 has been created as well
             (head, tail) = os.path.split(head)
@@ -68,7 +68,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
                 base_name=tail,
                 parent_path=dst_path
                 )
-            process_test_result.process_result(testname, (found and isdir), files, f"verify this is a directory: {tail}")
+            process_test_result.process(testname, (found and isdir), files, f"verify this is a directory: {tail}")
 
             # Now check for a non-existent folder
             tail = "folder_does_not_exist"
@@ -76,23 +76,23 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
                 base_name=tail,
                 parent_path=dst_path
                 )
-            process_test_result.process_result(testname, (not found), files, f"verify directory does not exist: {tail}")
+            process_test_result.process(testname, (not found), files, f"verify directory does not exist: {tail}")
         else:
-            process_test_result.process_result(testname, (False), result_output, f"copy file {file_name}")
+            process_test_result.process(testname, (False), result_output, f"copy file {file_name}")
 
         #############################################
         testname = "Test 1: Get Version"
         logger.debug(f"==> {testsuite_name} -> {testname}")
         (result_code, result_output) = rclone_handler.get_rclone_version()
         result_output = result_output.replace("\n", " ; ")
-        process_test_result.process_result(testname, ("rclone" in result_output.lower()), result_output)
+        process_test_result.process(testname, ("rclone" in result_output.lower()), result_output)
 
         #############################################
         testname = "Test 2: List Remotes"
         logger.debug(f"==> {testsuite_name} -> {testname}")
         (result_code, result_output) = rclone_handler.list_remotes()
         result_output = result_output.replace("\n", " ; ")
-        process_test_result.process_result(testname, (result_code == 0), result_output)
+        process_test_result.process(testname, (result_code == 0), result_output)
 
         #############################################
         testname = "Test 3: Copy file to remote"
@@ -109,9 +109,9 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
                 file_name=tail
                 )
             
-            process_test_result.process_result(testname, (found), files, f"verify file {tail} on remote")
+            process_test_result.process(testname, (found), files, f"verify file {tail} on remote")
         else:
-            process_test_result.process_result(testname, (False), result_output, f"copy file {file_name}")
+            process_test_result.process(testname, (False), result_output, f"copy file {file_name}")
 
         #############################################
         testname = "Test 4: Delete a file at remote"
@@ -124,7 +124,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
         # Now copy file to destination
         (result_code, result_output) = rclone_handler.copy_file(file_path)
         if result_code !=0:
-            process_test_result.process_result(testname, (False), result_output, f"copy file {file_name} to remote")
+            process_test_result.process(testname, (False), result_output, f"copy file {file_name} to remote")
         else:
             # Now delete the destination file
             dst_path = rclone_handler.get_destination_path(path=file_path)
@@ -138,7 +138,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
                 )
 
             # File should not be found
-            process_test_result.process_result(testname, (not found), files, f"check file {file_name} deleted")
+            process_test_result.process(testname, (not found), files, f"check file {file_name} deleted")
 
         #############################################
         testname = "Test 5: Create folder with files"
@@ -154,7 +154,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
         # Now copy folder to destination
         head = os.path.dirname(file_path)
         (result_code, result_output) = rclone_handler.copy_folder(head)
-        process_test_result.process_result(testname, (result_code == 0), result_output, f"copy folder {os.path.basename(head)}")
+        process_test_result.process(testname, (result_code == 0), result_output, f"copy folder {os.path.basename(head)}")
 
         # Check if subfolder has been copied to destination
         # There should be at least 3 files in the subfolder now
@@ -167,7 +167,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
 
         # We should have found file_name and there should be at least len(test_files) files
         result = (found and len(files) >= len(test_files))
-        process_test_result.process_result(testname, (result), files, f"found file {file_name} on remote")
+        process_test_result.process(testname, (result), files, f"found file {file_name} on remote")
 
         #############################################
         testname = "Test 6: Remove folder from remote"
@@ -183,7 +183,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
         # Now copy folder to destination
         head = os.path.dirname(file_path)
         (result_code, result_output) = rclone_handler.copy_folder(head)
-        process_test_result.process_result(testname, (result_code == 0), result_output, f"copy folder {os.path.basename(head)} to remote")
+        process_test_result.process(testname, (result_code == 0), result_output, f"copy folder {os.path.basename(head)} to remote")
 
         # Check if subfolder has been copied to destination
         # There should be at least 3 files in the subfolder now
@@ -196,14 +196,14 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
 
         # We should have found file_name and there should be at least test_file.len files
         result = (found and len(files) >= len(test_files))
-        process_test_result.process_result(testname, (result), files, f"check folder {file_name} exists")
+        process_test_result.process(testname, (result), files, f"check folder {file_name} exists")
 
         # Now delete the destination folder
         head = os.path.dirname(file_path)
         destination_path = rclone_handler.get_destination_path(head)
         # Method purge_folder will also delte the top-level folder.
         (result_code, result_output) = rclone_handler.purge_folder(destination_path)
-        process_test_result.process_result(testname, (result_code == 0), result_output, f"delete folder {os.path.basename(head)}")
+        process_test_result.process(testname, (result_code == 0), result_output, f"delete folder {os.path.basename(head)}")
 
         # Check if folder has been deleted at destination
         # Get parent of subfolder, then check if folder exists
@@ -214,7 +214,7 @@ def run_integration_check(testsuite_name: str, source_path: str, destination_pat
             folder_name=tail
             )
 
-        process_test_result.process_result(testname, (not found), result_output, f"check folder {os.path.basename(head)} deleted")
+        process_test_result.process(testname, (not found), result_output, f"check folder {os.path.basename(head)} deleted")
         logger.debug("\n--- All integration checks done ---")
 
     except Exception as e:

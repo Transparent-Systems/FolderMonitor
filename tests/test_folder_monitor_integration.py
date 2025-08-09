@@ -65,7 +65,7 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
         (head, tail) = os.path.split(filepath)
         dst_path = rclone_handler.get_destination_path(path=head)
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
-        process_test_result.process_result(testname, (found), files)
+        process_test_result.process(testname, (found), files)
     
         ######################################
         testname = "Test 2 : Delete a file"
@@ -76,7 +76,7 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
         (head, tail) = os.path.split(filepath)
         dst_path = rclone_handler.get_destination_path(path=head)
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
-        process_test_result.process_result(testname, (not found), files)
+        process_test_result.process(testname, (not found), files)
 
         ######################################
         testname = "Test 3 : Create subfolder with files. Check last file only"
@@ -89,7 +89,7 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
         (head, tail) = os.path.split(filepath)
         dst_path = rclone_handler.get_destination_path(path=head)
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
-        process_test_result.process_result(testname, (found), files)
+        process_test_result.process(testname, (found), files)
 
         #####################################
         testname = "Test 4 : Delete subfolder."
@@ -109,9 +109,9 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
             (head, tail) = os.path.split(filepath_files)
             dst_path = rclone_handler.get_destination_path(path=head)
             (found, files) = check_path.file_exists(parent_path=head, file_name=tail)
-            process_test_result.process_result(testname, (not found), files, f"verify file does not exist: {tail}")
+            process_test_result.process(testname, (not found), files, f"verify file does not exist: {tail}")
         else:
-            process_test_result.process_result(testname, (not found), files, f"verify folder does not exist: {head}")
+            process_test_result.process(testname, (not found), files, f"verify folder does not exist: {head}")
 
 
         ######################################
@@ -130,13 +130,13 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
         (head, tail) = os.path.split(old_file_path)
         dst_path = rclone_handler.get_destination_path(path=head)
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
-        process_test_result.process_result(testname, (not found), files, f"check {tail} not found")
+        process_test_result.process(testname, (not found), files, f"check {tail} not found")
 
         # Check if new file exists at destination
         (head, tail) = os.path.split(new_file_path)
         dst_path = rclone_handler.get_destination_path(head)
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
-        process_test_result.process_result(testname, found, files, f"check {tail} found")
+        process_test_result.process(testname, found, files, f"check {tail} found")
 
         ######################################
         testname = "Test 6 : Rename subfolder"
@@ -159,18 +159,18 @@ def run_integration_check(monitor_name: str, source_path = "data/Source",destina
         (head, tail) = os.path.split(head1)
         dst_path = rclone_handler.get_destination_path(head)
         (found, files) = check_path.folder_exists(parent_path=dst_path, folder_name=tail)
-        process_test_result.process_result(testname, (not found), files, f"check {tail} not found")
+        process_test_result.process(testname, (not found), files, f"check {tail} not found")
 
         # Check if new folder exists at destination
         (head, tail) = os.path.split(head2)
         dst_path = rclone_handler.get_destination_path(head)
         (found, files) = check_path.folder_exists(parent_path=dst_path, folder_name=tail)
-        process_test_result.process_result(testname, found, files, f"check {tail} found")
+        process_test_result.process(testname, found, files, f"check {tail} found")
 
 
     except Exception as e:
         logger.debug(f"\n--- Integration check for {monitor_name} FAILED: {e} ---")
-        process_test_result.process_result(testname, False , f"Fatal error executing tests: {e}")
+        process_test_result.process(testname, False , f"Fatal error executing tests: {e}")
     finally:
         logger.debug(f"\n--- Integration check cleanup for {monitor_name}")
 

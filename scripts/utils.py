@@ -120,7 +120,12 @@ class ProcessTestResult():
         self.duration = 0
         self.test_counter = 0
 
-    def process_result(self, test_case_name: str, test_ok: bool, result_output: str | list, test_step_name = ""):
+    def process(self, test_case_name: str, test_ok: bool, test_output: str | list, test_step_name = ""):
+        """
+        Process test result.
+        Calculates success and failure count and stores these metrics, result outputand identifiers in test_result
+        The test results can be retrieved later on in method get_test_results
+        """
         # --- Calculations
         end_time = time.perf_counter()
         test_duration = end_time - self.test_time
@@ -135,10 +140,10 @@ class ProcessTestResult():
 
         result_output_list = [str]
 
-        if isinstance(result_output, str):
-            result_output_list.append(result_output)
+        if isinstance(test_output, str):
+            result_output_list.append(test_output)
         else:
-            result_output_list = result_output
+            result_output_list = test_output
 
         test_result = {
             "test_case_name" : test_case_name,
