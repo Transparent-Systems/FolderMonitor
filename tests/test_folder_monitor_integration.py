@@ -22,7 +22,7 @@ After deleting test1.txt, the only thing remaining is: e2:mybucket
 The behaviour for a file like "rclone ls <file>" is different between local storage and remote storage.
 To get a more reliable check if a file exists on both local and remote storage we use "rclone lsjson <parent-folder>
 3)
-One or maore integratin tests may fail if check_delay is not high enough for the monitor tested.
+One or more integratin tests may fail if check_delay is not high enough for the monitor tested.
 You can check this by looking at the console log where folder_monitor.py runs
 If the console log stil shows log lines after this integration test has ended, than increase check-delay
 """
@@ -39,7 +39,9 @@ import shutil
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../scripts')))
 
 from rclone_handler import RcloneHandler
-from utils import create_test_data, delete_test_data, get_unique_logger, CheckPath, ProcessTestResult
+from utils.testing_util import create_test_data, delete_test_data, ProcessTestResult
+from utils.rclone_util import CheckPath
+from utils.logging_util import get_unique_logger
 
 
 def run_integration_check(monitor_name: str, source_path = "data/Source",destination_path = "data/Destination", logger = None, check_delay=1):

@@ -23,7 +23,8 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from watchdog.events import FileSystemEvent, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirCreatedEvent, DirDeletedEvent, DirMovedEvent, DirModifiedEvent, FileClosedEvent
 from rclone_handler import RcloneHandler
-from utils import CheckPath, get_unique_logger
+from utils.rclone_util import CheckPath
+from utils.logging_util import get_unique_logger
 
 
 class MyEventHandler(FileSystemEventHandler):

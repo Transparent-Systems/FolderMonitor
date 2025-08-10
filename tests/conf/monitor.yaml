@@ -48,7 +48,7 @@ monitors:
     testing:
       check-delay: 1
     backup:
-      enabled: false
+      enabled: enabled
       interval: "0s"
       mode: "copy"
 

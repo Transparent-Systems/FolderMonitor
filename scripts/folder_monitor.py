@@ -50,7 +50,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.events import FileSystemEvent, FileCreatedEvent, FileDeletedEvent, FileModifiedEvent, FileMovedEvent, DirCreatedEvent, DirDeletedEvent, DirMovedEvent, DirModifiedEvent, FileClosedEvent
 from rclone_handler import RcloneHandler
 from monitor_handler import MonitorHandler
-from utils import get_unique_logger
+from utils.logging_util import get_unique_logger
 
 
 def configure_pid_file(pid_file_path):
@@ -122,6 +122,7 @@ def perform_backup(monitor_config, reason="scheduled"):
     backup_config = monitor_config.get("backup", {})
     mode = backup_config.get("mode", "copy")  # Default to "copy" if not specified
 
+    # Fix faulty configuration value
     if mode not in ["copy", "sync"]:
         logger.debug(f"Invalid mode '{mode}' for monitor '{monitor_name}'. Defaulting to 'copy'.")
         mode = "copy"

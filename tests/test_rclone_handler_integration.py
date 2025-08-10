@@ -20,7 +20,9 @@ from logging.handlers import RotatingFileHandler
 # Add the scripts directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../scripts')))
 from rclone_handler import RcloneHandler
-from utils import create_test_data, delete_test_data, get_unique_logger, ProcessTestResult, CheckPath
+from utils.testing_util import create_test_data, delete_test_data, ProcessTestResult
+from utils.rclone_util import CheckPath
+from utils.logging_util import get_unique_logger
 
 
 def run_integration_check(testsuite_name: str, source_path: str, destination_path: str, rclone_flags: str, logger: logging.Logger) -> ProcessTestResult:

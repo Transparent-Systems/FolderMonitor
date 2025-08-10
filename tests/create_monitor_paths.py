@@ -17,7 +17,7 @@ import shutil
 # Add the scripts directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../scripts')))
 
-from utils import create_test_data, get_unique_logger, CheckPath, ProcessTestResult
+from utils.testing_util import create_test_data, get_unique_logger, CheckPath, ProcessTestResult
 
 
   
