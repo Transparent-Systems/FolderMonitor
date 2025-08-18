@@ -7,9 +7,9 @@ folder_monitor runs in a separate script
 When folder_monitor would be started in this script there could be thread racing conditions that would affect the test results
 In addition: we want to test a running file_monitor not monitor_handler
 Pre-requisites:
-Start folder_monitor using the same monitor yaml file as this script
+Start folder_monitor using the same config.yaml file as this script
     From the application folder run:
-    python.exe ./scripts/folder_monitor.py --monitor-config-path tests/conf/monitor.yaml
+    python.exe ./scripts/folder_monitor.py --config-path tests/conf/config.yaml
 
 Important notes:
 1)
@@ -217,14 +217,14 @@ def run_integration_check(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="This script runs integration tests for a monitor configured in a monotor yaml file."
+        description="This script runs integration tests for a monitor configured in a config.yaml file."
     )
-    parser.usage = "python test_monitor_handler_integration.py --monitor-config-path <path> --log-level <log level"
+    parser.usage = "python test_monitor_handler_integration.py --config-path <path> --log-level <log level"
     parser.add_argument(
-        "--monitor-config-path",
+        "--config-path",
         type=str,
-        help="Path of monitor configuration file. Default is conf/monitor.yaml",
-        default="tests/conf/monitor.yaml",
+        help="Path of monitor configuration file. Default is conf/config.yaml",
+        default="tests/conf/config.yaml",
     )
     parser.add_argument(
         "--log-file_name",

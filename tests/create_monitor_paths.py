@@ -29,12 +29,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script creates all required monitor paths configured in a monotor yaml file."
     )
-    parser.usage = "python test_monitor_handler_integration.py --monitor-config-path <path> --log-level <log level"
+    parser.usage = "python test_monitor_handler_integration.py --config-path <path> --log-level <log level"
     parser.add_argument(
-        "--monitor-config-path",
+        "--config-path",
         type=str,
-        help="Path of monitor configuration file. Default is conf/monitor.yaml",
-        default="tests/conf/monitor.yaml",
+        help="Path of monitor configuration file. Default is conf/config.yaml",
+        default="tests/conf/config.yaml",
     )
     parser.add_argument(
         "--log-level", type=str, help="Log level. Default is DEBUG", default="DEBUG"

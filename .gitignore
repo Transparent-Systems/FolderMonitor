@@ -3,12 +3,11 @@ __pycache__/
 
 # Project-specific files
 # Ignore all files in the following directories
-backup_scripts
 data
-docs_temp
-example_scripts
+temp
 logs
 pid
+snippets
 
 # Operating System files
 .DS_Store

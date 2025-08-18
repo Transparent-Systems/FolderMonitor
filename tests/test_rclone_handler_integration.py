@@ -281,12 +281,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script runs integration tests for rclone_handler. The configuration is in a monitor yaml file."
     )
-    parser.usage = "python test_rclone_handler_integration.py --monitor-config-path <path> --log-level <log level"
+    parser.usage = "python test_rclone_handler_integration.py --config-path <path> --log-level <log level"
     parser.add_argument(
-        "--monitor-config-path",
+        "--config-path",
         type=str,
-        help="Path of monitor configuration file. Default is test/conf/monitor.yaml",
-        default="tests/conf/monitor.yaml",
+        help="Path of monitor configuration file. Default is test/conf/config.yaml",
+        default="tests/conf/config.yaml",
     )
     parser.add_argument(
         "--log-filename",

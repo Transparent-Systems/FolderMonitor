@@ -1,4 +1,3 @@
-
 <img src="https://tsl003-aip.zoetebier.net/wp-content/uploads/2025/06/AIP_grey_transparent_background_github-e1750625832556.png" alt="AIP logo">
 
 [Website](https://tsl003-aip.zoetebier.net) |
@@ -26,9 +25,9 @@ FolderMonitor uses rclone as a tool to propagate changes.
   * folder_monitor.py  
     This is the core script that monitors a folder for changes and propagates changes to the destination.  
     Call example:  
-      python folder_monitor.py --monitor-config-path "./conf/monitor.yam 
+      python folder_monitor.py --config-path "./conf/config.yaml 
   * YAML configuration file
-    The YAML configuration file, default ./conf/monitor.yaml, contains settings for logging and one or more monitors
+    The YAML configuration file, default ./conf/config.yaml, contains settings for logging and one or more monitors
 
 ## Installation & documentation
 | Application or module | How to install |
@@ -117,6 +116,5 @@ Some new features could include:
 
   Each of these packaging tools have their pros and cons.  
 
-The main reason for a monitor.YAML file, instead of a monitor.INI file, was to easily add new features.
+The main reason for a config.YAML file, instead of a monitor.INI file, was to easily add new features.
 With YAML it is much easier to extend the functionality of the application.
-

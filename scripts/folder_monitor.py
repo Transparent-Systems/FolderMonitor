@@ -14,10 +14,10 @@ Requirements:
 Usage:
     Examples:
     python folder_monitor.py
-    python folder_monitor.py --monitor-config-path conf/monitor.yaml
+    python folder_monitor.py --config-path conf/config.yaml
 
     Arguments:
-        --monitor-config-path: Path to monitor configuration file. Default path is ../conf/monitor.yaml.
+        --config-path: Path to monitor configuration file. Default path is ../conf/config.yaml.
 Notes:
     - It is recommended to use a virtual Python environment to avoid conflicts with other packages.
     - To create and activate a virtual environment:
@@ -253,12 +253,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script monitors changes on files and subfolders in the monitor folder."
     )
-    parser.usage = "python folder_monitor.py --monitor-config-path <path>"
+    parser.usage = "python folder_monitor.py --config-path <path>"
     parser.add_argument(
-        "--monitor-config-path",
+        "--config-path",
         type=str,
-        help="Path of monitor configuration file. Default is conf/monitor.yaml",
-        default="conf/monitor.yaml",
+        help="Path of monitor configuration file. Default is conf/config.yaml",
+        default="conf/config.yaml",
     )
     args = parser.parse_args()
 

@@ -6,14 +6,14 @@ This project is a Python application that monitors a local folder for changes an
 
 - **Real-time monitoring:** Detect file creations, modifications, and deletions instantly.
 - **Efficient synchronization:** Only upload/download the necessary changes to minimize bandwidth.
-- **Configuration-driven:** All source, destination, and other settings are managed in a `conf/monitor.yaml` file.
+- **Configuration-driven:** All source, destination, and other settings are managed in a `conf/config.yaml` file.
 - **Robustness:** The application should handle network errors and unexpected file system events gracefully.
 
 ## Project Structure
 
 - `scripts/`: Contains the main application logic, including the file watcher and synchronization routines.
 - `tests/`: Unit and integration tests for the core functions.
-- `conf/`: Configuration files for different environments (e.g., `monitor.dev.yaml`, `monitor.prod.yaml`).
+- `conf/`: Configuration files for different environments (e.g., `config.dev.yaml`, `config.prod.yaml`).
 - `example_scripts/`: Example scripts for testing Python features.  **This folder should be ignored.**
 - `.venv/`: The virtual environment for the project. **This folder should be ignored.**
 - `.vscode/`: VS Code configuration files. **This folder should also be ignored.**
@@ -26,7 +26,7 @@ This project is a Python application that monitors a local folder for changes an
 
 - **Always ask for a plan** before making any code changes or running a script that modifies a file.
 - **Use the file system tools** (read, write, list) to understand the project structure and contents before answering.
-- **Refer to the `conf/monitor.yaml` file** for all configuration-related questions or tasks.
+- **Refer to the `conf/config.yaml` file** for all configuration-related questions or tasks.
 - **When suggesting a code change,** provide the full, modified file content, not just a patch, to ensure clarity and avoid confusion.
 - **Do not modify files in the `.venv/` or `.vscode/` or `example_scripts/` or `data/` directories.** These are development environment-specific and should not be touched.
 - **Prioritize readability and adherence to PEP 8.**
@@ -42,9 +42,11 @@ This project is a Python application that monitors a local folder for changes an
 - `scripts/rclone_util.py`: Utility script with rclone methods used in different Python scripts.
 
 ### <PROTOCOL:PLAN>
+
 When asked to create a plan, provide a clear, numbered list of steps. Each step should be actionable and describe the expected outcome. Do not execute any steps until I approve the plan.
 
 ### <PROTOCOL:IMPLEMENT>
+
 When you are implementing a plan, follow these rules:
 
 - Announce which file you are modifying before you start.

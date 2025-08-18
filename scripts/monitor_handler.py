@@ -185,8 +185,8 @@ class MonitorHandler:
     A class to monitor a folder for changes and trigger rclone operations.
     The class has been tested with Python >= 3.10 and rclone v1.64.2.
     Args:
-        monitor_config (dictionary): The monitor configuration dictionary configured in the monitor yaml file
-        log_config (dictionary): The logging configuration dictionary configured on the monitor yaml file
+        monitor_config (dictionary): The monitor configuration dictionary configured in the config.yaml file
+        log_config (dictionary): The logging configuration dictionary configured on the config.yaml file
     """
 
     def __init__(self, monitor_config, log_config):
