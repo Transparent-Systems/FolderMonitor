@@ -26,19 +26,9 @@ FolderMonitor uses rclone as a tool to propagate changes.
   * folder_monitor.py  
     This is the core script that monitors a folder for changes and propagates changes to the destination.  
     Call example:  
-      python folder_monitor.py --monitor-path "D:/Cloud/Test" --base-path "Cloud" --destination-path "e2:test-foldermonitor/Cloud" --sync-mode True
-  * folder_monitor_batch.py  
-    This script allows you to start one or more monitors in one go.  
-    It is very convenient to use this script in a job scheduler like TaskScheduler to start a bunch of monitors in one go.
-    Otherwise you would have to start a separate job for each monitor.
-    Every monitor is a line in text file monitor_entries.txt
-    The format is exactly the same as the parameters of script folder_monitor.py
-  * Folder_copy  
-    Folder_copy allows you to test an entry from file monitor_entries.txt
-    That way you can test each monitor individually before running folder_monitor_batch.py
-  * Logging  
-    Each script logs to the command line and to a rotating log file.
-    Log properties are configured on YAML file monitor.yaml
+      python folder_monitor.py --monitor-config-path "./conf/monitor.yam 
+  * YAML configuration file
+    The YAML configuration file, default ./conf/monitor.yaml, contains settings for logging and one or more monitors
 
 ## Installation & documentation
 | Application or module | How to install |
@@ -50,8 +40,8 @@ FolderMonitor uses rclone as a tool to propagate changes.
 | PyYAML | Use pip installer. See below |
 
 Notes:  
-I recommend to download and install rclone and Python from their official download locations.
-If you instal from the Windows store or using Winget you may not get all components.
+Best practice is to download and install rclone and Python from their official download locations.
+If you install from the Windows store or using Winget you may not get all components.
 
 First install Python if required. Next install the required Python modules using pip.
 For example FolderMonitor folder is C:\Apps\FolderMonitor
@@ -79,7 +69,7 @@ See file: COPYING.txt
 
 
 ## Why FolderMonitor
-You can find more information at: https://tsl003-aip.zoetebier.net/foldermonitor/
+You can find more information on website: https://tsl003-aip.transparent.co.nz
 
 Project FolderMonitor grew organically over time as I tried to find solutions for issues I encountered while working on my PCs and servers.  
 Initially I used OneDrive to "backup" files to the OneDrive cloud storage.  
@@ -87,8 +77,8 @@ However with several file explorers running simulteneously the PC became unrespo
 OneDrive was frequently using 100% CPU making working on the PC impossible.
 This was a deal breaker to me, I uninstalled OneDrive and decided to use rclone for copying files to the cloud.  
 
-Rclone worked a lot better than OneDrive and worked unobtrusive in the background.  
-I ran an rclone job every few hours and this was just fine for my purposes.  
+Rclone worked better than OneDrive and unobtrusive in the background.  
+I scheduled an rclone job every few hours and this was just fine for my purposes.  
 Until one day I wanted to upload my security videos to the cloud as well.  
 It was critical to upload those videos instantly and build a simple PowerShell script to do the job.  
 It worked, but it was not scalable. Each time I wanted to monitor another folder I had to copy the script and change the settings.
@@ -127,5 +117,6 @@ Some new features could include:
 
   Each of these packaging tools have their pros and cons.  
 
-The main reason for a monitor.YAML file, instead of a monitor.INI file, was for new features.
+The main reason for a monitor.YAML file, instead of a monitor.INI file, was to easily add new features.
 With YAML it is much easier to extend the functionality of the application.
+

@@ -12,7 +12,8 @@ from rclone_handler import RcloneHandler
 This script contains utility static methods and classes for rclone
 """
 
-class CheckPath():
+
+class CheckPath:
     """
     Checks if a specific basename (file or folder) exists in a given remote path using rclone lsjson.
 
@@ -25,7 +26,7 @@ class CheckPath():
             If basename is not present, a list of all files and folders present in remote path.
     """
 
-    def __init__(self, rclone_handler: RcloneHandler, check_delay = 0):
+    def __init__(self, rclone_handler: RcloneHandler, check_delay=0):
         """
         Constructor
 
@@ -36,8 +37,9 @@ class CheckPath():
         self.rclone_handler = rclone_handler
         self.check_delay = check_delay
 
-
-    def basename_exists(self, parent_path: str, base_name: str) -> tuple[bool, bool, list]:
+    def basename_exists(
+        self, parent_path: str, base_name: str
+    ) -> tuple[bool, bool, list]:
         """Check if folder exists.
 
         Args:
@@ -52,11 +54,7 @@ class CheckPath():
         time.sleep(self.check_delay)  # Sleep before checking
 
         # Construct the rclone lsjson command
-        rclone_command = [
-            "lsjson",
-            parent_path,
-            "--max-depth", "1"
-        ]
+        rclone_command = ["lsjson", parent_path, "--max-depth", "1"]
 
         (result_code, result_output) = self.rclone_handler.run_command(rclone_command)
 
@@ -67,8 +65,8 @@ class CheckPath():
                 for item in json_output:
                     # The 'Path' field in lsjson output is relative to the queried directory.
                     # For --max-depth 1, it will usually be just the filename.
-                    item_path = item.get('Path')
-                    item_isdir = item.get('IsDir')
+                    item_path = item.get("Path")
+                    item_isdir = item.get("IsDir")
                     if item_path:
                         found_files.append(item_path)
                         # Check if item is found and is a directory
@@ -76,17 +74,24 @@ class CheckPath():
                             if item_isdir:
                                 return True, True, found_files  # Directory
                             else:
-                                return True, False, found_files # File
-                return False, False, found_files # File not found in the list
+                                return True, False, found_files  # File
+                return False, False, found_files  # File not found in the list
             except json.JSONDecodeError:
-                return False, False, [f"Error: Could not decode JSON output: {result_output}"]
+                return (
+                    False,
+                    False,
+                    [f"Error: Could not decode JSON output: {result_output}"],
+                )
         elif result_code != 0:
             # If rclone itself returned an error (e.g., remote_path doesn't exist)
-            return False, False, [f"Rclone command failed when listing '{parent_path}'."]
+            return (
+                False,
+                False,
+                [f"Rclone command failed when listing '{parent_path}'."],
+            )
         else:
             # result_output is empty, meaning no files were found or directory is empty
             return False, False, []
-
 
     def folder_exists(self, parent_path: str, folder_name: str) -> tuple[bool, list]:
         """Check if folder exists.
@@ -102,11 +107,7 @@ class CheckPath():
         time.sleep(self.check_delay)  # Sleep before checking
 
         # Construct the rclone lsjson command
-        rclone_command = [
-            "lsjson",
-            parent_path,
-            "--max-depth", "1"
-        ]
+        rclone_command = ["lsjson", parent_path, "--max-depth", "1"]
 
         (result_code, result_output) = self.rclone_handler.run_command(rclone_command)
 
@@ -117,14 +118,14 @@ class CheckPath():
                 for item in json_output:
                     # The 'Path' field in lsjson output is relative to the queried directory.
                     # For --max-depth 1, it will usually be just the filename.
-                    item_path = item.get('Path')
-                    item_isdir = item.get('IsDir')
+                    item_path = item.get("Path")
+                    item_isdir = item.get("IsDir")
                     if item_path:
                         found_files.append(item_path)
                         # Check if item is found and is a directory
                         if item_path == folder_name and item_isdir:
                             return True, found_files
-                return False, found_files # File not found in the list
+                return False, found_files  # File not found in the list
             except json.JSONDecodeError:
                 return False, [f"Error: Could not decode JSON output: {result_output}"]
         elif result_code != 0:
@@ -147,12 +148,7 @@ class CheckPath():
 
         time.sleep(self.check_delay)  # Sleep before checking
         # Construct the rclone lsjson command
-        rclone_command = [
-            "lsjson",
-            "--files-only",
-            parent_path,
-            "--max-depth", "1"
-        ]
+        rclone_command = ["lsjson", "--files-only", parent_path, "--max-depth", "1"]
 
         (result_code, result_output) = self.rclone_handler.run_command(rclone_command)
 
@@ -163,12 +159,12 @@ class CheckPath():
                 for item in json_output:
                     # The 'Path' field in lsjson output is relative to the queried directory.
                     # For --max-depth 1, it will usually be just the filename.
-                    item_path = item.get('Path')
+                    item_path = item.get("Path")
                     if item_path:
                         found_files.append(item_path)
                         if item_path == file_name:
                             return True, found_files
-                return False, found_files # File not found in the list
+                return False, found_files  # File not found in the list
             except json.JSONDecodeError:
                 return False, [f"Error: Could not decode JSON output: {result_output}"]
         elif result_code != 0:
@@ -177,4 +173,3 @@ class CheckPath():
         else:
             # result_output is empty, meaning no files were found or directory is empty
             return False, []
-

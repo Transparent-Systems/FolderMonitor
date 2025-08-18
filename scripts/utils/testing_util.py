@@ -2,74 +2,58 @@ import os
 import shutil
 import time
 import sys
+from pathlib import Path
 
 """
 This script contains utility static methods and classes
 """
 
 
-def create_test_data(path: str, files: list[str] | str):
+def create_test_data(path: str, files: list[str]) -> Path:
     """
-    Create files relative to path
-    If files is empty then create folder
+    Create files relative to path.
+    Returns the path to the last created file.
     """
 
-    if isinstance(files, str):
-        file_list = [f"{files}"]
-    else:
-        file_list = files
-
-    # If file_list is empty then this is a folder
-    if len(file_list) == 0:
+    for file_name in files:
+        file_name = file_name.lstrip("/\\")
         try:
-            os.makedirs(path, exist_ok=True)
-        except OSError as e:
-            sys.exit(1)
-        return path
-
-    for filename in file_list:
-        filename = filename.lstrip("/\\")
-        file_path = os.path.join(path, filename)
-        head = os.path.dirname(file_path)
-        try:
-            os.makedirs(name=head, exist_ok=True)
-        except OSError as e:
+            file_path = Path(path) / Path(file_name)
+            parent_path = file_path.parent
+            if not parent_path.exists():
+                parent_path.mkdir(parents=True, exist_ok=True)
+        except Exception as e:
             sys.exit(1)
 
         try:
-            with open(file_path, 'w') as f:
-                f.write(f"Test data for {file_path}\n")
+            file_path.write_text(f"Test data for {file_path.as_posix}\n")
         except Exception as e:
             sys.exit(1)
 
     return file_path
 
 
-def delete_test_data(path: str, files: list[str] | str):
+def delete_test_data(path: str, files: list[str]) -> Path:
     """
-    Delete files relative to path
+    Delete files in path
     """
 
-    if isinstance(files, str):
-        file_list = [f"{files}"]
-    else:
-        file_list = files
-
-    for filename in file_list:
+    for file_name in files:
         try:
-            filename = filename.lstrip("/\\")
-            filepath = os.path.join(path, filename)
-            if (os.path.isfile(filepath)):
-                os.remove(filepath)
-            else:
-                shutil.rmtree(path=filepath)
+            file_name = file_name.lstrip("/\\")
+            file_path = Path(path) / Path(file_name)
+            if file_path.exists():
+                if file_path.is_file():
+                    file_path.unlink()
+                else:
+                    shutil.rmtree(path=file_path)
         except Exception as e:
             continue
-    
-    return filepath
+
+    return file_path
 
 
-class ProcessTestResult():
+class ProcessTestResult:
     """
     Class to store and retrieve test results
     """
@@ -84,7 +68,13 @@ class ProcessTestResult():
         self.duration = 0
         self.test_counter = 0
 
-    def process(self, test_case_name: str, test_ok: bool, test_output: str | list, test_step_name = ""):
+    def process(
+        self,
+        test_case_name: str,
+        test_ok: bool,
+        test_output: str | list,
+        test_step_name="",
+    ):
         """
         Process test result.
         Calculates success and failure count and stores these metrics, result outputand identifiers in test_result
@@ -96,7 +86,7 @@ class ProcessTestResult():
         self.test_time = end_time
         self.duration = end_time - self.start_time
         self.test_counter += 1
-        
+
         if test_ok:
             self.success_count += 1
         else:
@@ -110,16 +100,14 @@ class ProcessTestResult():
             result_output_list = test_output
 
         test_result = {
-            "test_case_name" : test_case_name,
-            "test_step_name" : test_step_name,
-            "test_counter" : self.test_counter,
-            "test_ok" : test_ok,
-            "test_duration" : test_duration,
-            "test_output" : result_output_list
+            "test_case_name": test_case_name,
+            "test_step_name": test_step_name,
+            "test_counter": self.test_counter,
+            "test_ok": test_ok,
+            "test_duration": test_duration,
+            "test_output": result_output_list,
         }
         self.test_results.append(test_result)
 
     def get_test_results(self) -> list[dict]:
-        return (self.test_results)
-
-
+        return self.test_results
