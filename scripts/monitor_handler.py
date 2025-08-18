@@ -15,9 +15,8 @@ Classes:
     MonitorHandler: Manages the observer and event handler lifecycle.
 """
 
-import os
 import logging
-
+from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -97,7 +96,9 @@ class MyEventHandler(FileSystemEventHandler):
             self.rclone_handler.backend_type is None
             or self.rclone_handler.backend_type in ["ftp"]
         ):
-            (head, tail) = os.path.split(destination_path)
+            
+            head = Path(destination_path).parent.as_posix()
+            tail = Path(destination_path).name
             (found, isdir, result_output) = self.check_path.basename_exists(
                 parent_path=head, base_name=tail
             )
@@ -130,7 +131,7 @@ class MyEventHandler(FileSystemEventHandler):
         So, we check if the path exist, if not, then skip further processing
         """
 
-        if not os.path.exists(event.src_path):
+        if not Path(event.src_path).exists():
             # Watchdog triggered FileModifiedEvent event on folder
             return
 
@@ -141,7 +142,7 @@ class MyEventHandler(FileSystemEventHandler):
         return
 
     def on_closed(self, event) -> None:
-        if not os.path.exists(event.src_path):
+        if not Path(event.src_path).exists():
             return
 
         self.logger.info(
@@ -207,7 +208,7 @@ class MonitorHandler:
             raise ValueError("monitor_path is required in the monitor configuration.")
 
         # If monitor_path does not exist, then raise an error
-        if not os.path.exists(self.monitor_path):
+        if not Path(self.monitor_path).exists():
             raise FileNotFoundError(
                 f"Monitor path '{self.monitor_path}' does not exist. Please check the configuration."
             )
