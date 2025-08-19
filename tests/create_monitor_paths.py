@@ -34,7 +34,7 @@ if __name__ == "__main__":
         "--config-path",
         type=str,
         help="Path of monitor configuration file. Default is conf/config.yaml",
-        default="tests/conf/config.yaml",
+        default="conf/config.tests.yaml",
     )
     parser.add_argument(
         "--log-level", type=str, help="Log level. Default is DEBUG", default="DEBUG"

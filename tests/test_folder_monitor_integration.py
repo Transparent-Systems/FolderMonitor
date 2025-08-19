@@ -9,7 +9,7 @@ In addition: we want to test a running file_monitor not monitor_handler
 Pre-requisites:
 Start folder_monitor using the same config.yaml file as this script
     From the application folder run:
-    python.exe ./scripts/folder_monitor.py --config-path tests/conf/config.yaml
+    python.exe ./scripts/folder_monitor.py --config-path conf/config.tests.yaml
 
 Important notes:
 1)
@@ -224,7 +224,7 @@ if __name__ == "__main__":
         "--config-path",
         type=str,
         help="Path of monitor configuration file. Default is conf/config.yaml",
-        default="tests/conf/config.yaml",
+        default="conf/config.tests.yaml",
     )
     parser.add_argument(
         "--log-file_name",
