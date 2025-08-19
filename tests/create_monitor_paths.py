@@ -59,12 +59,12 @@ if __name__ == "__main__":
     # --- End Central Logging Setup ---
 
     # Load configuration from the monitor config file
-    with open(args.monitor_config_path, "r") as file:
+    with open(args.config_path, "r") as file:
         monitor_config = yaml.safe_load(file)
 
     log_config = monitor_config.get("logging")
     if log_config is None:
-        print(f"Configuration for 'logging' not found in {args.monitor_config_path}.")
+        print(f"Configuration for 'logging' not found in {args.config_path}.")
         sys.exit(1)
 
     LOG_FILE = log_config.get("log_filename", "folder_monitor.log")

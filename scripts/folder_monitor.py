@@ -263,13 +263,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Load configuration from the monitor config file
-    # monitor_config = ConfigHandler(args.monitor_config_path)
-    with open(args.monitor_config_path, "r") as file:
+    # monitor_config = ConfigHandler(args.config_path)
+    with open(args.config_path, "r") as file:
         monitor_config = yaml.safe_load(file)
 
     log_config = monitor_config.get("logging")
     if log_config is None:
-        print(f"Configuration for 'logging' not found in {args.monitor_config_path}.")
+        print(f"Configuration for 'logging' not found in {args.config_path}.")
         sys.exit(1)
 
         # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
@@ -344,7 +344,7 @@ if __name__ == "__main__":
     monitors = monitor_config.get("monitors")
     if monitors is None:
         logger.error(
-            f"Configuration for 'monitors' not found in {args.monitor_config_path}."
+            f"Configuration for 'monitors' not found in {args.config_path}."
         )
         sys.exit(1)
 
