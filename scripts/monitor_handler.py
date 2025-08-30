@@ -60,18 +60,32 @@ class MyEventHandler(FileSystemEventHandler):
 
     def on_any_event(self, event):
         """
-        Catch-all event handler.
-        This is useful for debugging and seeing all events that occur.
+        Catch-all event handler for any file system event.
+
+        This method is primarily used for debugging purposes to log all
+        events that occur, regardless of their type. It does not perform
+        any specific actions based on the event.
+
+        Args:
+            event (FileSystemEvent): The event object representing the file system change.
         """
         self.logger.debug(f"Event type: {event.event_type}  Path: {event.src_path}")
         pass
 
     def on_created(self, event):
+        """
+        Handles file and directory creation events.
+
+        For directory creation, the actual copy operation is postponed to the
+        `on_modified` event, as directory creation often implies subsequent
+        file additions. For file creation, the copy is also postponed to
+        `on_modified` or `on_closed` for reliability with large files.
+
+        Args:
+            event (FileSystemEvent): The creation event object.
+        """
         if event.is_directory:
-            # If the event is a directory creation, we copy the entire folder
-            self.logger.info(
-                f"on_created: folder '{event.src_path}'; create postponed to on_modified event"
-            )
+            self.logger.info(f"on_created: folder '{event.src_path}'; create postponed to on_modified event")
         else:
             # If the event is a file creation, we copy the specific file
             self.logger.debug(
@@ -79,31 +93,51 @@ class MyEventHandler(FileSystemEventHandler):
             )
 
     def on_deleted(self, event):
+        """
+        Handles file and directory deletion events.
+
+        When a file or directory is deleted from the monitored source path,
+        this method attempts to delete the corresponding item at the destination.
+        It includes specific handling for local/FTP backends to check for existence
+        before deletion, and falls back to a general delete for other backend types.
+
+        Args:
+            event (FileSystemEvent): The deletion event object.
+        """
+        # Log the deletion event with the source path
         self.logger.info(f"on_deleted: src_path='{event.src_path}'")
 
         # watchdog v6.0.0 never triggers a DirDeletedEvent. This test is just for future use.
-        if event.is_directory:
+        # If the deleted event is a directory, purge the corresponding folder at the destination.
+        # This handles cases where an entire directory is removed.
+        if event.is_directory: # This code is never reached as watchdog does not trigger DirDeletedEvent
             # If the event is a directory deletion, we delete the entire folder
             self.rclone_handler.purge_folder(destination_path=destination_path)
             return
 
         # After all files have been delete on Object Storage, all emptry folders will be gone.
         # So it is possible that the delete may fail.
-        # We can test if destination directory exists in case backend type is local
+        # Get the corresponding destination path for the deleted item.
         destination_path = self.rclone_handler.get_destination_path(event.src_path)
 
+        # Check if the backend type is local or FTP.
+        # For these backends, we can perform a more precise check if the item exists
+        # before attempting to delete, as they might behave differently than object storage.
         if (
             self.rclone_handler.backend_type is None
             or self.rclone_handler.backend_type in ["ftp"]
         ):
             
+            # Split the destination path into parent and base name to check for existence.
             head = Path(destination_path).parent.as_posix()
             tail = Path(destination_path).name
             (found, isdir, result_output) = self.check_path.basename_exists(
                 parent_path=head, base_name=tail
             )
 
-            # If base_name is not found than return
+            # If the base name (file or folder) is not found at the destination,
+            # it means it was already deleted or never existed, so we can return
+            # without attempting a delete operation.
             if not found:
                 return
 
@@ -113,6 +147,7 @@ class MyEventHandler(FileSystemEventHandler):
                 )
             else:
                 (return_code, return_output) = self.rclone_handler.delete_file(
+                    # If it's a file, delete the specific file.
                     destination_path=destination_path
                 )
         else:
@@ -127,50 +162,73 @@ class MyEventHandler(FileSystemEventHandler):
         Handles file modification events.
         We have filtered out DirModifiedEvent noise (like access_time changes) by checking if the path is a directory.
         So we shoud not receive DirModifiedEvent events here.
-        However, a file is removed from a folder, then wathdog triggers a FileModifiedEvent on the folder of that file.
+        However, if a file is removed from a folder, then watchdog might trigger a FileModifiedEvent on the folder of that file.
         So, we check if the path exist, if not, then skip further processing
         """
 
+        # If the source path no longer exists (e.g., it was a temporary file
+        # that was quickly created and then deleted, or a directory event),
+        # we skip processing to avoid errors.
         if not Path(event.src_path).exists():
             # Watchdog triggered FileModifiedEvent event on folder
             return
 
         self.logger.info(
             f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+            # Log the modification event details.
         )
         self.rclone_handler.copy_file(source_path=event.src_path)
         return
 
     def on_closed(self, event) -> None:
+        """
+        Handles file closed events.
+
+        This method is triggered when a file is closed after being written to.
+        It's particularly useful for ensuring that large files are copied only
+        after their content is fully written and the file handle is released.
+        Args:
+            event (FileClosedEvent): The closed event object."""
         if not Path(event.src_path).exists():
             return
-
+        # Log the closed event details.
         self.logger.info(
             f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
         )
+        # When a file is closed (finished writing), copy it to the destination.
+        # This is often more reliable for large files than on_modified.
         self.rclone_handler.copy_file(source_path=event.src_path)
 
     def on_moved(self, event):
         """
-        Handles events where a file or folder is moved
-        The old location is event.src_path
-        The new location is event.dest_path
-        All events are in the Observer folder
+        Handles file and directory move/rename events.
+
+        When a file or directory is moved or renamed in the monitored source path,
+        this method first deletes the item from its old location at the destination
+        and then copies it to its new location at the destination.
+
+        Args:
+            event (FileMovedEvent or DirMovedEvent): The move/rename event object.
+                `event.src_path` is the old path, and `event.dest_path` is the new path.
         """
 
+        # Log the move/rename event, showing both old and new paths.
         self.logger.info(
             f"on_moved - renamed from {event.src_path} to {event.dest_path}"
         )
 
         if event.is_directory:
-            # Remove old folder from remote
+            # If a directory was moved:
+            # 1. Get the destination path for the old directory.
             destination_path = self.rclone_handler.get_destination_path(
                 path=event.src_path
             )
+            # 2. Purge (delete) the old directory from the remote.
             self.rclone_handler.purge_folder(destination_path=destination_path)
-            # Copy new folder to remote
+            # 3. Copy the new directory (at its new source location) to the remote.
             self.rclone_handler.copy_folder(source_path=event.dest_path)
         else:
+            # If a file was moved:
             # Remove old file from remote
             destination_path = self.rclone_handler.get_destination_path(
                 path=event.src_path
@@ -182,11 +240,21 @@ class MyEventHandler(FileSystemEventHandler):
 
 class MonitorHandler:
     """
-    A class to monitor a folder for changes and trigger rclone operations.
-    The class has been tested with Python >= 3.10 and rclone v1.64.2.
-    Args:
-        monitor_config (dictionary): The monitor configuration dictionary configured in the config.yaml file
-        log_config (dictionary): The logging configuration dictionary configured on the config.yaml file
+    Manages the lifecycle of a file system observer to monitor a specified folder
+    for changes and trigger rclone operations based on those changes.
+
+    This class initializes an `Observer` from the `watchdog` library and
+    associates it with a `MyEventHandler` instance. It handles the starting
+    and stopping of the monitoring process.
+
+    Attributes:
+        monitor_config (dict): Configuration details for the specific monitor,
+                               including `monitor_path`, `destination_path`, `enabled`,
+                               and `rclone_flags`.
+        log_config (dict): Configuration details for logging.
+        monitor_enabled (bool): Indicates if the monitor is enabled.
+        observer (Observer or None): The watchdog observer instance.
+        logger (logging.Logger): The logger instance for this monitor.
     """
 
     def __init__(self, monitor_config, log_config):
@@ -223,7 +291,13 @@ class MonitorHandler:
         self.logger.debug("MonitorHandler: exiting __init__")
 
     def start_monitor(self):
-        """Start monitoring the specified folder for changes."""
+        """
+        Starts monitoring the specified folder for changes.
+
+        Initializes an `RcloneHandler` and `MyEventHandler`, then schedules
+        the observer to watch the `monitor_path` recursively, filtering out
+        `DirModifiedEvent` to reduce noise.
+        """
         rclone_handler = RcloneHandler(
             self.destination_path, self.monitor_path, self.logger, self.rclone_flags
         )
@@ -242,10 +316,10 @@ class MonitorHandler:
             DirCreatedEvent,
             DirDeletedEvent,
             DirMovedEvent,
-            # DirModifiedEvent, # <--- DO NOT INCLUDE THIS IF YOU WANT TO FILTER OUT FOLDER ACCESS CHANGES
-            # IMPORTANT: Exclude DirModifiedEvent if you don't want folder access_time changes
-            # or other non-content directory modifications to trigger on_modified.
-            # If you uncomment the next line, DirModifiedEvent will be included.
+            # DirModifiedEvent, # <--- DO NOT INCLUDE THIS IF YOU WANT TO FILTER OUT FOLDER ACCESS CHANGES (e.g., access time changes)
+            # IMPORTANT: Exclude DirModifiedEvent if you don't want folder access_time changes or other non-content
+            # directory modifications to trigger on_modified. Including it can lead to excessive events.
+            # If you uncomment the next line, DirModifiedEvent will be included in the events processed.
             # DirModifiedEvent, # <--- DO NOT INCLUDE THIS IF YOU WANT TO FILTER OUT FOLDER ACCESS CHANGES
         ]
 
@@ -262,7 +336,11 @@ class MonitorHandler:
         )
 
     def stop_monitor(self):
-        self.logger.info(f"Stopping monitor for {self.monitor_path}")
+        """
+        Stops the file system observer.
+
+        If an observer is running, it is stopped and joined, and its status is logged.
+        """
         if self.observer is not None:
             self.observer.stop()
             self.observer.join()
