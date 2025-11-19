@@ -7,7 +7,6 @@ import logging
 import time
 import sys
 from rclone_handler import RcloneHandler
-from pathlib import Path
 
 """
 This script contains utility static methods and classes for rclone
@@ -16,15 +15,15 @@ This script contains utility static methods and classes for rclone
 
 class CheckPath:
     """
-    Checks if a specific path (file or folder) exists in a given remote path using rclone lsjson.
+    Checks if a specific basename (file or folder) exists in a given remote path using rclone lsjson.
 
     Args:
         rclone_handler (RcloneHandler): An instance of the RcloneHandler.
 
     Returns:
-        bool: True if the path is present in remote path, False otherwise.
-        list: If path is present, a list of all files and folders present in remote path found so far.
-            If path is not present, a list of all files and folders present in remote path.
+        bool: True if the basename is present in remote path, False otherwise.
+        list: If basename is present, a list of all files and folders present in remote path found so far.
+            If basename is not present, a list of all files and folders present in remote path.
     """
 
     def __init__(self, rclone_handler: RcloneHandler, check_delay=0):
@@ -38,23 +37,22 @@ class CheckPath:
         self.rclone_handler = rclone_handler
         self.check_delay = check_delay
 
-    def path_exists(
-        self, path: str
+    def basename_exists(
+        self, parent_path: str, base_name: str
     ) -> tuple[bool, bool, list]:
-        """Check if path exists.
+        """Check if base_name exists.
 
         Args:
-            path (str): the path we check to exist
+            parent_path (str): folder containing base_name
+            base_name (str): the base_name we check to exist
 
         Returns:
-            tuple (bool, bool, list): A tuple indicating if the path exists, if it is a directory and a list of some data.
+            tuple (bool, bool, list): A tuple indicating if the base_name exists, if it is a directory and a list of some data.
                                       The list of data can contain a list of files / folders or an error message
         """
 
         time.sleep(self.check_delay)  # Sleep before checking
-        parent_path = Path(path).parent.as_posix()
-        base_name = Path(path).name
-    
+
         # Construct the rclone lsjson command
         rclone_command = ["lsjson", parent_path, "--max-depth", "1"]
 

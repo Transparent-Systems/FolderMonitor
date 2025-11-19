@@ -51,11 +51,10 @@ def run_integration_check(
         file_path = create_test_data(path=source_path, files=[file_name])
         (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
         if result_code == 0:
-            head = file_path.parent
-            tail = file_path.name
-            dst_path = rclone_handler.get_destination_path(path=head)
-            (found, isdir, files) = check_path.basename_exists(
-                base_name=tail, parent_path=dst_path
+            # dst_path = rclone_handler.get_destination_path(path=head)
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
             )
 
             # Check this is a file
@@ -64,35 +63,35 @@ def run_integration_check(
             )
 
             # Now check a file that does not exist
-            tail = "file-does-not-exists.txt"
-            (found, isdir, files) = check_path.basename_exists(
-                base_name=tail, parent_path=dst_path
+            dst_path = Path(source_path) / Path("file-does-not-exists.txt")
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
             )
             process_test_result.process(
-                testname, (not found), files, f"verify file does not exist: {tail}"
+                testname, (not found), files, f"verify file does not exist: {dst_path}"
             )
 
             # Now check Subfolder1 has been created at destination
-            head2 = head.parent
-            tail2 = head.name
-            dst_path = rclone_handler.get_destination_path(path=head2)
-            (found, isdir, files) = check_path.basename_exists(
-                base_name=tail2, parent_path=dst_path
+            subfolder_path= Path(source_path) / Path("Subfolder1")
+            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
             )
             process_test_result.process(
                 testname,
                 (found and isdir),
                 files,
-                f"verify this is a directory: {tail2}",
+                f"verify this is a directory: {dst_path}",
             )
 
             # Now check for a non-existent folder
-            tail = "folder_does_not_exist"
-            (found, isdir, files) = check_path.basename_exists(
-                base_name=tail, parent_path=dst_path
+            subfolder_path= Path(source_path) / Path("folder_does_not_exist")
+            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
             )
             process_test_result.process(
-                testname, (not found), files, f"verify directory does not exist: {tail}"
+                testname, (not found), files, f"verify directory does not exist: {subfolder_path.name}"
             )
         else:
             process_test_result.process(
@@ -244,8 +243,8 @@ def run_integration_check(
         head = file_path.parent
         tail = file_path.name
         destination_path = rclone_handler.get_destination_path(path=head)
-        # Method purge_folder will also delte the top-level folder.
-        (result_code, result_output) = rclone_handler.purge_folder(destination_path=destination_path)
+        # Method purge_folder will delete all versions. Do not user purge_folder. It's better to have empty folders than to remove versions!
+        (result_code, result_output) = rclone_handler.delete_folder(destination_path=destination_path)
         process_test_result.process(
             testname,
             (result_code == 0),
@@ -270,16 +269,14 @@ def run_integration_check(
         file_path = create_test_data(path=source_path, files=[file_name])
         (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
         if result_code == 0:
-            head = file_path.parent
-            tail = file_path.name
-            dst_path = rclone_handler.get_destination_path(path=head)
-            (found, isdir, files) = check_path.basename_exists(
-                base_name=tail, parent_path=dst_path
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
             )
 
             # Check this is a file
             process_test_result.process(
-                testname, (found and not isdir), files, f"verify this is a file: {tail}"
+                testname, (found and not isdir), files, f"verify this is a file: {dst_path}"
             )
 
         else:
@@ -296,16 +293,14 @@ def run_integration_check(
         (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
         if result_code == 0:
             parent = file_path.parent
-            head = parent.parent
-            tail = parent.name
-            dst_path = rclone_handler.get_destination_path(path=head)
-            (found, isdir, files) = check_path.basename_exists(
-                base_name=tail, parent_path=dst_path
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
             )
 
             # Check this is a folder
             process_test_result.process(
-                testname, (found and isdir), files, f"verify this is a folder: {tail}"
+                testname, (found and isdir), files, f"verify this is a folder: {dst_path}"
             )
         else:
             process_test_result.process(
@@ -324,6 +319,7 @@ def run_integration_check(
 
 
 if __name__ == "__main__":
+    print("Starting integration test")
     parser = argparse.ArgumentParser(
         description="This script runs integration tests for rclone_handler. The configuration is in a monitor yaml file."
     )
@@ -345,6 +341,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--test-delay", type=str, help="Delay in seconds.", default=0.5)
     args = parser.parse_args()
+    print(f"Arguments: {args}")
 
     # Setup logger
     root_logger = logging.getLogger()
@@ -361,17 +358,21 @@ if __name__ == "__main__":
     console_handler_real.setFormatter(formatter)
     root_logger.addHandler(console_handler_real)
     root_logger.debug("Root logger configured with console handler.")
+    print("Root logger configured")
     # --- End Central Logging Setup ---
 
     # Load configuration from the monitor config file
+    print(f"Loading config from {args.config_path}")
     with open(args.config_path, "r") as file:
         monitor_config = yaml.safe_load(file)
+    print("Config loaded")
 
     # monitor_config = ConfigHandler(args.config_path)
     log_config = monitor_config.get("logging")
     if log_config is None:
         print(f"Configuration for 'logging' not found in {args.config_path}.")
         sys.exit(1)
+    print("Log config found")
 
     # LOG_FILE = log_config.get('log_filename', 'test_rclone_handler_integration.log')
     LOG_FOLDER = log_config.get("log_folder", "logs")
@@ -401,18 +402,21 @@ if __name__ == "__main__":
     root_logger.addHandler(rotating_file_handler_real)
     logger = get_unique_logger(args.log_level)
     logger.debug("Before calling run_integration_check")
+    print("Logger created")
 
     monitors = monitor_config.get("monitors")
+    print(f"Monitors: {monitors}")
     process_test_results: list[ProcessTestResult] = []
     for monitor in monitors:
         monitor_name = monitor.get("name")
         subfolder = "test_rclone_handler_integration"
         source_path = monitor.get("monitor_path")
-        source_path = source_path.rstrip("/\\")
+        source_path = source_path.rstrip("/")
         source_path = f"{source_path}/{subfolder}"
         destination_path = monitor.get("destination_path")
-        destination_path = destination_path.rstrip("/\\")
+        destination_path = destination_path.rstrip("/")
         destination_path = f"{destination_path}/{subfolder}"
+        print(f"Running test for monitor: {monitor_name}")
 
         process_test_result = run_integration_check(
             testsuite_name=monitor_name,
@@ -423,6 +427,7 @@ if __name__ == "__main__":
         )
 
         process_test_results.append(process_test_result)
+    print("Finished running tests")
 
     # Print test resuls of all monitors
     total_success_count = 0
@@ -483,3 +488,4 @@ if __name__ == "__main__":
     logger.info(f"Total failure count   : {total_failure_count}")
     logger.info(f"Total duration        : {total_duration: .2f} seconds")
     logger.info(f"===> End total counts for all monitors <===")
+    print("Finished printing results")

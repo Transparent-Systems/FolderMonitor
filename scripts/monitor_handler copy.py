@@ -119,25 +119,39 @@ class MyEventHandler(FileSystemEventHandler):
         # So it is possible that the delete may fail.
         # Get the corresponding destination path for the deleted item.
         destination_path = self.rclone_handler.get_destination_path(event.src_path)
-        (found, isdir, result_output) = self.check_path.path_exists(path=destination_path)
 
-        # If the base name (file or folder) is not found at the destination,
-        # then:
-        #   - it was already deleted
-        #   - it never existed
-        #   - All files in the virtual folder on object storage have been deleted
-        # 
-        # Nothing further to do
-        if not found:
-            return
-
-        if isdir:
-            (return_code, return_output) = self.rclone_handler.delete_folder(
-                destination_path=destination_path
+        # Check if the backend type is local or FTP.
+        # For these backends, we can perform a more precise check if the item exists
+        # before attempting to delete, as they might behave differently than object storage.
+        if (
+            self.rclone_handler.backend_type is None
+            or self.rclone_handler.backend_type in ["ftp"]
+        ):
+            
+            # Split the destination path into parent and base name to check for existence.
+            head = Path(destination_path).parent.as_posix()
+            tail = Path(destination_path).name
+            (found, isdir, result_output) = self.check_path.path_exists(
+                parent_path=head, base_name=tail
             )
+
+            # If the base name (file or folder) is not found at the destination,
+            # it means it was already deleted or never existed, so we can return
+            # without attempting a delete operation.
+            if not found:
+                return
+
+            if isdir:
+                (return_code, return_output) = self.rclone_handler.delete_folder(
+                    destination_path=destination_path
+                )
+            else:
+                (return_code, return_output) = self.rclone_handler.delete_file(
+                    # If it's a file, delete the specific file.
+                    destination_path=destination_path
+                )
         else:
             (return_code, return_output) = self.rclone_handler.delete_file(
-                # If it's a file, delete the specific file.
                 destination_path=destination_path
             )
 

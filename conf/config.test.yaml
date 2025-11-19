@@ -1,7 +1,7 @@
 version: 1.0
 
 logging:
-  log_file_name: monitor_integration.log
+  log_file_name: monitor_test.log
   log_folder: logs
   # log_folder: C:/Apps/FolderMonitor/logs
   log_max_file_size: 1000000
@@ -40,17 +40,17 @@ monitors:
   # Backend flags can be added to the rclone configuration as well. This is usually more convenient
   # While testing folder_monitor ensure each monitor has a unique monitor_path so each monitor test will trigger 1 event in 1 monitor only
   
-  - name: "local storage"
-    enabled: true
-    monitor_path: "data/Source/local-storage"
-    destination_path: "data/Destination/local-storage"
-    rclone_flags: "--transfers, 4"
-    testing:
-      check-delay: 1
-    backup:
-      enabled: enabled
-      interval: "0s"
-      mode: "copy"
+  # - name: "local storage"
+  #   enabled: true
+  #   monitor_path: "data/Source/local-storage"
+  #   destination_path: "data/Destination/local-storage"
+  #   rclone_flags: "--transfers, 4"
+  #   testing:
+  #     check-delay: 1
+  #   backup:
+  #     enabled: enabled
+  #     interval: "0s"
+  #     mode: "copy"
 
   # - name: "nas1 ftp storage"
   #   enabled: true
@@ -64,17 +64,17 @@ monitors:
   #     interval: "0s"
   #     mode: "copy"
 
-  # - name: "idrive-cloud-storage"
-  #   enabled: true
-  #   monitor_path: "data/Source/idrive-cloud-storage"
-  #   destination_path: "e2:test-foldermonitor/idrive-cloud-storage"
-  #   rclone_flags: "--transfers, 4, --s3-no-check-bucket"
-  #   testing:
-  #     check-delay: 3
-  #   backup:
-  #     enabled: false
-  #     interval: "0s"
-  #     mode: "copy"
+  - name: "idrive-cloud-storage"
+    enabled: true
+    monitor_path: "data/Source/idrive-cloud-storage"
+    destination_path: "e2:test-foldermonitor/idrive-cloud-storage"
+    rclone_flags: "--transfers, 4, --s3-no-check-bucket"
+    testing:
+      check-delay: 3
+    backup:
+      enabled: false
+      interval: "0s"
+      mode: "copy"
 
   # - name: "backblaze-cloud-storage"
   #   enabled: true

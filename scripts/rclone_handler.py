@@ -252,7 +252,10 @@ class RcloneHandler:
 
     def purge_folder(self, destination_path):
         """
-        Delete contents inside destination_path. Purge will also remove the folder at destination_path
+        Delete content and all file versions inside destination_path. Purge will also remove the folder at destination_path
+        Important: 
+            This method will remove all versions on a versioned storage backend.
         """
 
         return self.run_command(["purge", destination_path], self.rclone_flags)
+    
