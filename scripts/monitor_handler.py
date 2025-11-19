@@ -273,7 +273,7 @@ class MonitorHandler:
                 "destination_path is required in the monitor configuration."
             )
 
-        self.rclone_flags = monitor_config.get("rclone_flags", '"--transfers, 4')
+        self.rclone_flags = monitor_config.get("rclone_flags", '')
         self.logger.debug("MonitorHandler: exiting __init__")
 
     def start_monitor(self):

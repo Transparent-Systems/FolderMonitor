@@ -183,28 +183,30 @@ class RcloneHandler:
 
         if return_value == 0:
             return (return_value, result_output)
-
-        # rclone copyto can fail if a file has been deleted at the destination on a versioned file system
-        # If copyto fails, we try to copy the file using rclone --include
-        # This is a fallback mechanism
-        # Check result_output for MethodNotAllowed
-        if "MethodNotAllowed" in result_output:
-            source_path_obj = Path(source_path)
-            file_name = source_path_obj.name
-            source_folder = source_path_obj.parent
-            destination_folder = self.get_destination_path(path=str(source_folder))
-            return self.run_command(
-                [
-                    "copy",
-                    str(source_folder),
-                    destination_folder,
-                    "--include",
-                    file_name,
-                ],
-                self.rclone_flags,
-            )
-
-        return (return_value, result_output)
+        else:
+            # rclone copyto can fail if a file has been deleted at the destination on a versioned file system
+            # If copyto fails, we try to copy the file using rclone --include
+            # This is a fallback mechanism
+            # Check result_output for MethodNotAllowed
+            if "MethodNotAllowed" in result_output:
+                source_path_obj = Path(source_path)
+                file_name = source_path_obj.name
+                source_folder = source_path_obj.parent
+                destination_folder = self.get_destination_path(path=str(source_folder))
+                return self.run_command(
+                    [
+                        "copy",
+                        str(source_folder),
+                        destination_folder,
+                        "--include",
+                        file_name,
+                    ],
+                    self.rclone_flags,
+                )
+            else:
+                # Log copy_file failed
+                self.logger.warning(f"copy_file failed; ; return_value={return_value}")
+                return (return_value, result_output)
 
     def copy_folder(self, source_path):
         """
@@ -252,7 +254,8 @@ class RcloneHandler:
 
     def purge_folder(self, destination_path):
         """
-        Delete content and all file versions inside destination_path. Purge will also remove the folder at destination_path
+        Delete content and all file versions inside destination_path. 
+        Purge will also remove the folder at destination_path
         Important: 
             This method will remove all versions on a versioned storage backend.
         """

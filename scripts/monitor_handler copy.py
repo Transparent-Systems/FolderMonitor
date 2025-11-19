@@ -129,11 +129,7 @@ class MyEventHandler(FileSystemEventHandler):
         ):
             
             # Split the destination path into parent and base name to check for existence.
-            head = Path(destination_path).parent.as_posix()
-            tail = Path(destination_path).name
-            (found, isdir, result_output) = self.check_path.path_exists(
-                parent_path=head, base_name=tail
-            )
+            (found, isdir, result_output) = self.check_path.path_exists(path=destination_path)
 
             # If the base name (file or folder) is not found at the destination,
             # it means it was already deleted or never existed, so we can return
