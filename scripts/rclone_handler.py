@@ -27,13 +27,16 @@ Usage:
 import json
 import logging
 import subprocess
+import shlex
 import sys
+import os
 import shutil
 from pathlib import Path
 
-rclone_path = shutil.which("rclone")
+_rclone_path = shutil.which("rclone")
+_is_windows = sys.platform.startswith('win')
 
-if not rclone_path:
+if not _rclone_path:
     print("rclone executable not found in the system's PATH.")
     sys.exit(1)
 
@@ -54,7 +57,7 @@ class RcloneHandler:
             print("Loading rclone config...")
 
             try:
-                rclone_command = [rclone_path, "config", "dump"]
+                rclone_command = [_rclone_path, "config", "dump"]
                 logger.debug(f"Running command: {' '.join(rclone_command)}")
                 result_process = subprocess.run(
                     rclone_command, capture_output=True, text=True, check=True
@@ -106,46 +109,49 @@ class RcloneHandler:
         return
 
     def run_command(
-        self, rclone_command_parms: list[str] | str, additional_arguments=""
+        self, rclone_parms: list[str], additional_args_str=""
     ):
         """
         Run rclone_command is a subprocess
         Return tupe (result_code and result_output)
         Param rclone_command: list or comma delimited string
-        Param additional_arguments: comma delimited string
+        Param args_str: a string with arguments
         """
 
-        # Add rclone executable
-        if isinstance(rclone_command_parms, str):
-            rclone_command_string = f"{rclone_path}, {rclone_command_parms}"
-            # Turn string into a list
-            rclone_command = []
-            for _ in rclone_command_string.split(","):
-                rclone_command.append(_.strip())
-        else:
-            rclone_command_parms.insert(0, rclone_path)
-            rclone_command = rclone_command_parms
+        # Parse Additional Arguments Safely
+        try:
+            # posix=True (default) treats backslash '\' as an escape character.
+            # posix=False treats '\' as a normal character (better for Windows paths).
+            extra_args_list = shlex.split(additional_args_str, posix=not _is_windows)
+        except ValueError as e:
+            self.logger.error(f"Error parsing arguments: {e}")
+            return None
+      
 
-        # Add additional_arguments to rclone_command
-        if additional_arguments and not additional_arguments.isspace():
-            for _ in additional_arguments.split(","):
-                rclone_command.append(_.strip())
+        # Add rclone executable
+        rclone_command = rclone_parms.copy()
+        rclone_command.insert(0, _rclone_path)
+        # Add extra_args_list to rclone_command
+        for _ in extra_args_list:
+            rclone_command.append(_)
 
         try:
             self.logger.debug(f"Running command: {' '.join(rclone_command)}")
             result_process = subprocess.run(
-                rclone_command, capture_output=True, text=True, check=True
+                rclone_command, 
+                capture_output=True,
+                text=True, 
+                check=True
             )
-            # Check if the command was successful
-            if result_process.returncode == 0:
-                return (result_process.returncode, result_process.stdout.strip())
-            else:
-                return (result_process.returncode, result_process.stderr)
+
+            return (result_process.returncode, result_process.stdout.strip())
         except subprocess.CalledProcessError as e:
             # This happens in case of an rclone command failure, for example running lsf command on a file
-            # self.logger.error(f"Error running command: {' '.join(rclone_command)}")
-            # self.logger.error(f"Error: {e}")
-            # self.logger.error(e.stderr)
+            self.logger.error(f"Error running command: {' '.join(rclone_command)}")
+            self.logger.error(f"Error returncode: {e.returncode}")
+            self.logger.debug(f"Error stdout: {e.stdout}")
+            self.logger.debug(
+                f"Error stderr: {e.stderr}"  )
             return (e.returncode, e.stderr)
 
     def get_destination_path(self, path: str) -> str:
@@ -159,13 +165,13 @@ class RcloneHandler:
         return destination_path.as_posix()
 
     def get_rclone_version(self):
-        return self.run_command("--version")
+        return self.run_command(["--version"])
 
     def list_remotes(self):
         """
         List remotes configured
         """
-        return self.run_command("listremotes")
+        return self.run_command(["listremotes"])
 
     def copy_file(self, source_path) -> tuple[int, list[str]]:
         """

@@ -40,7 +40,11 @@ monitors:
     enabled: true
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test1"
     destination_path: "drive:test-foldermonitor/Test1"
-    rclone_flags: "--transfers, 8"
+    rclone_flags: "--transfers 8"
+    exclude-patterns: 
+      - "excluded folder"
+    # testing:
+    #   check-delay: 3
     backup:
       enabled: true
       interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
@@ -50,7 +54,11 @@ monitors:
     enabled: true
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test2"
     destination_path: "e2:test-foldermonitor/Test2"
-    rclone_flags: "--transfers, 8, --s3-no-check-bucket"
+    rclone_flags: "--transfers 8 --s3-no-check-bucket"
+    exclude-patterns: 
+      - "excluded folder"
+    testing:
+      check-delay: 3
     backup:
       enabled: true
       interval: "0s"
