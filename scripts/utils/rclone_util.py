@@ -1,8 +1,6 @@
 import json
 import logging
-import uuid
 import os
-import shutil
 import logging
 import time
 import sys
@@ -17,11 +15,9 @@ from rclone_handler import RcloneHandler
 This script contains utility static methods and classes for rclone
 """
 
-
 class CheckPath:
     """
     Checks if a specific path (file or folder) exists in a given remote path using rclone lsjson.
-    Checks if a specific path (file or folder) is excluded according to excludes pattern
 
     Args:
         rclone_handler (RcloneHandler): An instance of the RcloneHandler.
@@ -42,136 +38,6 @@ class CheckPath:
         """
         self.rclone_handler = rclone_handler
         self.check_delay = check_delay
-
-
-    def is_excluded(path_str: str, exclude_patterns: list[str]) -> bool:
-        """
-        Checks if a path matches any of the exclude patterns.
-        """
-
-        # First check entire path
-        for pattern in exclude_patterns:
-            path_obj = Path(path_str)
-            if (fnmatch.fnmatch(path_obj, pattern)):
-                return True
-
-            # Next check path parts
-            path_list = list(path_obj.parts)
-            for path in path_list:
-                if (fnmatch.fnmatch(path, pattern)):
-                    return True
-        
-        return False
-
-
-    def is_excluded_v2(file_path: str, exclude_patterns: list) -> bool:
-        """
-        Checks if a file path matches any of the exclude patterns.
-        Now handles full subpath matching like "build/app1".
-        """
-        path_obj = Path(file_path)
-        
-        # 1. Check the filename itself
-        for pattern in exclude_patterns:
-            # if fnmatch.fnmatch(path_obj.name, pattern):
-            if fnmatch.fnmatch(path_obj.name, pattern):
-                return True
-
-        # 2. --- START OF Subpath Traversal ---
-        
-        # We use path_obj.parents to check all path slices efficiently. 
-        # The parents iterator goes from the immediate parent up to the root.
-        
-        # Include the file_path itself in the check (for patterns that match the full path)
-        paths_to_check = [path_obj] + list(path_obj.parents) 
-        
-        # We iterate over the path's ancestors and check for a relative match against patterns
-        for path_to_check in paths_to_check:
-            # Create a relative path string that uses forward slashes (e.g., 'build/app1')
-            # We start checking from the last meaningful directory component.
-            
-            # NOTE: This approach assumes your patterns (e.g., 'build/app1') are relative 
-            # to the project root or the current directory.
-            
-            # Simplified Check: Just check the string representation
-            subpath_string = path_to_check.as_posix()
-            normalized_subpath = f"/{subpath_string}/"
-            
-            for pattern in exclude_patterns:
-                if '/' not in pattern and '*' not in pattern and '?' not in pattern:
-                    # Look for the pattern as a whole directory name using path delimiters
-                    # Example: Check if "/build/" is found in "/project/builder/app"
-                    # This prevents 'build' from matching 'builder'.
-                    
-                    # Create the delimited pattern (e.g., "/build/" or "build/")
-                    delimited_pattern = f"/{pattern}/"
-                    
-                    # Check if the full path string (with leading/trailing delimiters) contains the delimited pattern
-                    # We must normalize the subpath_string to have leading/trailing slashes for reliable checking.
-                    
-                    if delimited_pattern in normalized_subpath:
-                        return True
-
-                # If the pattern is an exact match for the path slice (e.g., 'build/app1')
-                if normalized_subpath.endswith(pattern) or normalized_subpath.endswith(pattern + '/'):
-                    return True # Basic check for fixed path patterns
-
-                # If the pattern is a part of the path slice (eg. /*buid*/)
-                if fnmatch.fnmatch(normalized_subpath, pattern):
-                        return True
-
-        # --- END OF Subpath Traversal ---
-                
-        return False
-
-    def is_excluded_v1(file_path: str, exclude_patterns: list) -> bool:
-        """
-        Checks if a file path matches any of the exclude patterns.
-        Now handles full subpath matching like "build/app1".
-        """
-        path_obj = Path(file_path)
-        # Ensure consistent forward slashes for matching patterns defined with '/'
-        file_path_posix = path_obj.as_posix()
-        
-        # 1. Check the filename itself (Unchanged)
-        for pattern in exclude_patterns:
-            if fnmatch.fnmatch(path_obj.name, pattern):
-                return True
-
-        # --- START OF Subpath Traversal ---
-        
-        # We use path_obj.parents to check all path slices efficiently. 
-        # The parents iterator goes from the immediate parent up to the root.
-        
-        # Include the file_path itself in the check (for patterns that match the full path)
-        paths_to_check = [path_obj] + list(path_obj.parents) 
-        
-        # We iterate over the path's ancestors and check for a relative match against patterns
-        for path_to_check in paths_to_check:
-            # Create a relative path string that uses forward slashes (e.g., 'build/app1')
-            # We start checking from the last meaningful directory component.
-            
-            # NOTE: This approach assumes your patterns (e.g., 'build/app1') are relative 
-            # to the project root or the current directory.
-            
-            # Simplified Check: Just check the string representation
-            subpath_string = path_to_check.as_posix()
-            
-            for pattern in exclude_patterns:
-                
-                # Use fnmatch on the full path string.
-                # We check if the pattern is an explicit part of the full path string.
-                if fnmatch.fnmatch(file_path_posix, '*' + pattern + '*'):
-                    return True
-                    
-                # If the pattern is an exact match for the path slice (e.g., 'build/app1')
-                if subpath_string.endswith(pattern) or subpath_string.endswith(pattern + '/'):
-                    return True # Basic check for fixed path patterns
-
-        # --- END OF Subpath Traversal ---
-                
-        return False
-
 
     def path_exists(
         self, path: str

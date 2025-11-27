@@ -52,7 +52,7 @@ class RcloneHandler:
 
     @classmethod
     def _load_rclone_config(cls, logger: logging.Logger) -> dict:
-        """A class method to handle the loading of the configuration."""
+        """A class method to handle the loading of the rclone configuration."""
         if cls._rclone_config_json is None:
             print("Loading rclone config...")
 

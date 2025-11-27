@@ -69,8 +69,9 @@ monitors:
     monitor_path: "data/Source/idrive-cloud-storage"
     destination_path: "e2:test-foldermonitor/idrive-cloud-storage"
     rclone_flags: "--transfers 4 --s3-no-check-bucket"
-    exclude-patterns: 
-      - "excluded folder"
+    exclude_patterns: 
+      - "excluded-folder"
+      - "*.tmp"
     testing:
       check-delay: 3
     backup:
@@ -84,7 +85,8 @@ monitors:
   #   monitor_path: "data/Source/idrive-cloud-storage"
   #   destination_path: "e2:test-foldermonitor-versioned/idrive-cloud-storage"
   #   rclone_flags: "--transfers 4 --s3-no-check-bucket"
-  #   exclude-patterns: "'excluded folder'"
+  #   exclude_patterns: 
+  #     - "excluded folder"
   #   testing:
   #     check-delay: 3
   #   backup:

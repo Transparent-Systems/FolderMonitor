@@ -16,6 +16,8 @@ Classes:
 """
 
 import logging
+import fnmatch
+
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from watchdog.observers import Observer
@@ -37,6 +39,27 @@ from utils.rclone_util import CheckPath
 from utils.logging_util import get_unique_logger
 
 
+def is_excluded(path_str: str, exclude_patterns: list[str]) -> bool:
+    """
+    Checks if a path matches any of the exclude patterns.
+    """
+
+    # Iterate over exluded patterns
+    for pattern in exclude_patterns:
+        # First check entire path
+        path_obj = Path(path_str)
+        if (fnmatch.fnmatch(path_obj, pattern)):
+            return True
+
+        # Next check path parts
+        path_list = list(path_obj.parts)
+        for path in path_list:
+            if (fnmatch.fnmatch(path, pattern)):
+                return True
+    
+    return False
+
+
 class MyEventHandler(FileSystemEventHandler):
     """
     A class to handle file system events.
@@ -48,13 +71,16 @@ class MyEventHandler(FileSystemEventHandler):
     rclone_handler: RcloneHandler
     check_path: CheckPath
     logger: logging.Logger
+    exclude_patterns: list[str]
+
 
     def __init__(
-        self, rclone_handler: RcloneHandler, logger: logging.Logger | None = None
+        self, rclone_handler: RcloneHandler, monitor_config: dict, logger: logging.Logger | None = None
     ):
         super().__init__()
         self.rclone_handler = rclone_handler
         self.check_path = CheckPath(rclone_handler=rclone_handler)
+        self.exclude_patterns = monitor_config.get("exclude_patterns", [])
         self.logger = logger or logging.getLogger(__name__)
         self.logger.debug("MyEventHandler initialized")
 
@@ -84,6 +110,13 @@ class MyEventHandler(FileSystemEventHandler):
         Args:
             event (FileSystemEvent): The creation event object.
         """
+
+        if is_excluded(event.src_path, self.exclude_patterns):
+            self.logger.debug(
+                f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+            )
+            return
+
         if event.is_directory:
             self.logger.info(f"on_created: folder '{event.src_path}'; create postponed to on_modified event")
         else:
@@ -106,6 +139,12 @@ class MyEventHandler(FileSystemEventHandler):
         """
         # Log the deletion event with the source path
         self.logger.info(f"on_deleted: src_path='{event.src_path}'")
+
+        if is_excluded(event.src_path, self.exclude_patterns):
+            self.logger.debug(
+                f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+            )
+            return
 
         # watchdog v6.0.0 never triggers a DirDeletedEvent. This test is just for future use.
         # If the deleted event is a directory, purge the corresponding folder at the destination.
@@ -152,17 +191,23 @@ class MyEventHandler(FileSystemEventHandler):
         So, we check if the path exist, if not, then skip further processing
         """
 
+        self.logger.info(
+            # Log the modification event details.
+            f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+        )
+
+        if is_excluded(event.src_path, self.exclude_patterns):
+            self.logger.debug(
+                f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+            )
+            return
+
         # If the source path no longer exists (e.g., it was a temporary file
         # that was quickly created and then deleted, or a directory event),
         # we skip processing to avoid errors.
         if not Path(event.src_path).exists():
-            # Watchdog triggered FileModifiedEvent event on folder
             return
 
-        self.logger.info(
-            f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
-            # Log the modification event details.
-        )
         self.rclone_handler.copy_file(source_path=event.src_path)
         return
 
@@ -175,12 +220,21 @@ class MyEventHandler(FileSystemEventHandler):
         after their content is fully written and the file handle is released.
         Args:
             event (FileClosedEvent): The closed event object."""
+        
+        if is_excluded(event.src_path, self.exclude_patterns):
+            self.logger.debug(
+                f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+            )
+            return
+
         if not Path(event.src_path).exists():
             return
+        
         # Log the closed event details.
         self.logger.info(
             f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
         )
+
         # When a file is closed (finished writing), copy it to the destination.
         # This is often more reliable for large files than on_modified.
         self.rclone_handler.copy_file(source_path=event.src_path)
@@ -197,6 +251,12 @@ class MyEventHandler(FileSystemEventHandler):
             event (FileMovedEvent or DirMovedEvent): The move/rename event object.
                 `event.src_path` is the old path, and `event.dest_path` is the new path.
         """
+
+        if is_excluded(event.src_path, self.exclude_patterns):
+            self.logger.debug(
+                f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+            )
+            return
 
         # Log the move/rename event, showing both old and new paths.
         self.logger.info(
@@ -274,6 +334,8 @@ class MonitorHandler:
             )
 
         self.rclone_flags = monitor_config.get("rclone_flags", '')
+        self.exclude_patterns = monitor_config.get("exclude_patterns", [])
+        self.clone_flags = monitor_config.get("rclone_flags", '')
         self.logger.debug("MonitorHandler: exiting __init__")
 
     def start_monitor(self):
@@ -281,13 +343,13 @@ class MonitorHandler:
         Starts monitoring the specified folder for changes.
 
         Initializes an `RcloneHandler` and `MyEventHandler`, then schedules
-        the observer to watch the `monitor_path` recursively, filtering out
+        the observer to monitor the `monitor_path` recursively, filtering out
         `DirModifiedEvent` to reduce noise.
         """
         rclone_handler = RcloneHandler(
             self.destination_path, self.monitor_path, self.logger, self.rclone_flags
         )
-        event_handler = MyEventHandler(rclone_handler, self.logger)
+        event_handler = MyEventHandler(rclone_handler=rclone_handler, monitor_config=self.monitor_config, logger=self.logger)
         self.observer = Observer()
 
         # Define the event filter:
