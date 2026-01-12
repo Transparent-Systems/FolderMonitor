@@ -46,6 +46,7 @@ from config_models import ConfigModels
 from rclone_handler import RcloneHandler
 from monitor_handler import MonitorHandler
 from utils.logging_util import get_unique_logger
+from utils.generic_util import convert_to_seconds
 
 
 def configure_pid_file(pid_file_path: str) -> bool:
@@ -214,21 +215,13 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
         return  # Exit if backup is explicitly disabled
 
     raw_interval = backup_config.get("interval", "0")  # Default to "0" if not specified
-    interval_seconds = parse_time_string(
-        raw_interval, 0
-    )  # Default to 0 if parsing fails
-
-    # Determine the effective interval and corresponding behavior
+    interval_seconds = convert_to_seconds(raw_interval)
+    logger.debug(
+        f"[{monitor_name}] Backup interval is {interval_seconds} seconds"
+        )
     # The logic for determining the backup interval is as follows:
     # - If the interval is None or 0, a one-off backup will be performed immediately.
     # - If the interval is positive, a recurring backup will be performed at the specified interval.
-    # Check for None first to avoid TypeError when comparing with integers
-
-    if interval_seconds is None:
-        logger.debug(
-            f"[{monitor_name}] Backup interval is empty or missing. Set backup interval to 0."
-        )
-        interval_seconds = 0  # Treat None as 0 for one-off backup
 
     if interval_seconds == 0:
         logger.debug(
@@ -236,11 +229,6 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
         )
         perform_backup(monitor_config, reason="one-off (interval 0)")
         return  # Exit the thread after one-off backup
-
-    one_hour = parse_time_string("1h")
-    if interval_seconds < one_hour:
-        logger.info(f"Minimum backup interval is one hour: {one_hour} seconds")
-        interval_seconds = one_hour
 
     logger.debug(f"[{monitor_name}] Backup scheduled every {interval_seconds} seconds.")
     # This loop will run indefinitely for recurring backups

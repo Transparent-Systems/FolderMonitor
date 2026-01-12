@@ -9,39 +9,6 @@ logging:
   log_level: debug
 
 monitors:
-  # Important: On Windows, for monitor_path use forward slash "/" OR double backslash "\\"
-  # Good: C:/path/to/monitor
-  # Good: C:\\path\\to\\monitor
-  # Bad: C:\path\to\monitor
-  
-  # These are the folder monitors that will be started
-  # If backup_interval >= 0 this will trigger a folder backup besides the running folder monitor
-  # - name: "monitor name"
-  #   enabled: "true | false" # if true, the monitor will be started
-  #   monitor_path: "folder to monitor"
-  #   destination_path: "cloud storage, local folder or shared folder"
-  # Rclone flags are used to optimise performance or to handle features of remote storage
-  #   rclone_flags: >
-  #     "--transfers 8"
-  #     "--s3-no-check-bucket"
-  # testing:
-  #   test-delay: 0.5 # For testing purposes only. Seconds to delay before checking remote storage. Default = 1 second
-  #               Currently on sed in currently test_folder_monitor_integration.py
-  # backup:
-  #   enabled: true | false # if true, the backup will be started
-  #   interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-  #                 #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one-off backup.
-  #   mode: "sync | copy" 
-  #               sync will delete files in destination_path that are not in source folder. 
-  #               copy will not delete files in destination_path that are not in source folder.
-  
-  # Example rclone flags
-  # --transfers: <int> Number of transfers, default is 4 
-  # --s3-no-check-bucket: The --s3-no-check-bucket flag handles the use case where the user running folder_monitor.py has no CreateBucket permission.
-  # --dry-run: This is for testing purposes only. Nothing will change in the remote storage
-  # Backend flags can be added to the rclone configuration as well. This is usually more convenient
-  # While testing folder_monitor ensure each monitor has a unique monitor_path so each monitor test will trigger 1 event in 1 monitor only
-  
   # - name: "local storage"
   #   enabled: true
   #   monitor_path: "data/Source/local-storage"
@@ -51,7 +18,7 @@ monitors:
   #     check_delay: 1
   #   backup:
   #     enabled: enabled
-  #     interval: "0s"
+  #     interval: ""
   #     mode: "copy"
 
   # - name: "nas1 ftp storage"
@@ -63,7 +30,7 @@ monitors:
   #     check_delay: 1
   #   backup:
   #     enabled: false
-  #     interval: "0s"
+  #     interval: ""
   #     mode: "copy"
 
   - name: "idrive-cloud-storage-not-versioned"
@@ -78,7 +45,7 @@ monitors:
       check_delay: 3
     backup:
       enabled: false
-      interval: "0s"
+      interval: ""
       mode: "copy"
 
 
@@ -93,7 +60,7 @@ monitors:
   #     check_delay: 3
   #   backup:
   #     enabled: false
-  #     interval: "0s"
+  #     interval: ""
   #     mode: "copy"
 
   # - name: "backblaze-cloud-storage"
@@ -105,7 +72,7 @@ monitors:
   #     check_delay: 5
   #   backup:
   #     enabled: false
-  #     interval: "0s"
+  #     interval: ""
   #     mode: "copy"
 
   # - name: "cloudflare-cloud-storage"
@@ -117,7 +84,7 @@ monitors:
   #     check_delay: 3
   #   backup:
   #     enabled: false
-  #     interval: "0s"
+  #     interval: ""
   #     mode: "copy"
 
   # - name: "google drive cloud storage - personal credentials"
@@ -129,7 +96,7 @@ monitors:
   #     check_delay: 10
   #   backup:
   #     enabled: false
-  #     interval: "0s"
+  #     interval: ""
   #     mode: "copy"
 
   # - name: "google drive cloud storage - generic credentials"
@@ -141,7 +108,7 @@ monitors:
   #     check_delay: 20
     # backup:
   #   # enabled: false
-  #   # interval: "0s"
+  #   # interval: ""
   #   # mode: "copy"
 
 

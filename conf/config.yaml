@@ -24,7 +24,7 @@ monitors:
   #   rclone_flags: "--transfers 8 --s3-no-check-bucket" # Rclone flags are used to optimise performance or to handle features of remote storage
   # backup:
   #   enabled: true | false # if true, the backup will be started
-  #   interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+  #   interval: "" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
   #                 #It can be a time duration like "1d" for 1 day, "1h" for 1 hour, "1m" for 1 minute. Zero means one-off backup.
   #   mode: "sync | copy" 
   #               sync will delete files in destination_path that are not in source folder. 
@@ -43,7 +43,7 @@ monitors:
     rclone_flags: "--transfers 8"
     backup:
       enabled: false
-      interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
+      interval: "" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
       mode: "copy"
 
   - name: "monitor to e2"
@@ -55,7 +55,7 @@ monitors:
       "--s3-no-check-bucket"
     backup:
       enabled: false
-      interval: "0s"
+      interval: ""
       mode: "copy"
 
   # - name: "monitor to e2 versioned"
@@ -65,6 +65,6 @@ monitors:
   #   rclone_flags: "--transfers 16 --s3-no-check-bucket"
   #   backup:
   #     enabled: false
-  #     interval: "0s"
+  #     interval: ""
   #     mode: "copy"
    
