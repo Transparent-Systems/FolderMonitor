@@ -1,4 +1,4 @@
-version: 1.0
+version: "1.0"
 
 logging:
   log_file_name: folder_monitor.log
@@ -21,7 +21,7 @@ monitors:
   #   enabled: "true | false" # if true, the monitor will be started
   #   monitor_path: "folder to monitor"
   #   destination_path: "cloud storage, local folder or shared folder"
-  #   rclone_flags: "--transfers, 8, --s3-no-check-bucket" # Rclone flags are used to optimise performance or to handle features of remote storage
+  #   rclone_flags: "--transfers 8 --s3-no-check-bucket" # Rclone flags are used to optimise performance or to handle features of remote storage
   # backup:
   #   enabled: true | false # if true, the backup will be started
   #   interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
@@ -40,7 +40,7 @@ monitors:
     enabled: true
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test1"
     destination_path: "drive:test-foldermonitor/Test1"
-    rclone_flags: "--transfers, 8"
+    rclone_flags: "--transfers 8"
     backup:
       enabled: false
       interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
@@ -50,7 +50,9 @@ monitors:
     enabled: true
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test2"
     destination_path: "e2:test-foldermonitor/Test2"
-    rclone_flags: "--transfers, 8, --s3-no-check-bucket"
+    rclone_flags: >
+      "--transfers 8"
+      "--s3-no-check-bucket"
     backup:
       enabled: false
       interval: "0s"
@@ -60,7 +62,7 @@ monitors:
   #   enabled: true
   #   monitor_path: "D:/Development/FolderMonitor/data/Source/versioned"
   #   destination_path: "e2:test-foldermonitor-versioned/versioned"
-  #   rclone_flags: "--transfers, 16, --s3-no-check-bucket"
+  #   rclone_flags: "--transfers 16 --s3-no-check-bucket"
   #   backup:
   #     enabled: false
   #     interval: "0s"

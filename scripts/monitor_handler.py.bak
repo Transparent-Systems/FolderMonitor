@@ -220,7 +220,18 @@ class MyEventHandler(FileSystemEventHandler):
         after their content is fully written and the file handle is released.
         Args:
             event (FileClosedEvent): The closed event object."""
-        
+
+        # Important:
+        #   The on_closed event may not be triggered when the file has been created by an FTP server.
+        #   In such cases, we may need to add a stable_period test in the on_modified event
+        #   to handle files created via FTP.
+        #   When the file does not change size during stable_period, AND there has been no on_close event for this file, then we copy the file to the destination
+
+        # Log the modification event details.
+        self.logger.debug(
+            f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
+        )
+
         if is_excluded(event.src_path, self.exclude_patterns):
             self.logger.debug(
                 f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"

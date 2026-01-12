@@ -39,6 +39,7 @@ from pathlib import Path
 scriptspath = Path(__file__).parent / Path("../scripts")
 sys.path.insert(0, scriptspath.resolve().as_posix())
 
+from config_models import ConfigModels
 from rclone_handler import RcloneHandler
 from utils.testing_util import create_test_data, delete_test_data, ProcessTestResult
 from utils.rclone_util import CheckPath
@@ -53,7 +54,16 @@ def run_integration_check(
     check_delay=1,
 ):
     """
-    Trigger events in monitor path src_path
+    Pre-requisite: 
+    1) folder_monitor.py must be running with same config.yaml file as this script
+    2) Ensure that for testing purposes the test-delay in the config.yaml file is set to a value big enough to allow the monitor to process events
+        This depends mainly on the cloud storage used and the performance of the system running folder_monitor.py
+
+    Description of test cases
+    Trigger events in monitor path src_path.
+    Then check if the expected result is found at destination path dst_path.
+    The rclone_handler is used to check files at the destination path.
+
     All files and folder created will be in test subfolder
     That way we can safely remove that test subfolder from source and destination
     """
@@ -73,8 +83,9 @@ def run_integration_check(
     )
 
     try:
-        #####################################
+        ##########################################################################
         test_name = "Test 1 : Create new file"
+        ###########################################################################
         logger.debug(f"==> {test_name}")
         file_name = "test1.txt"
         file_path = create_test_data(path=source_path, files=[file_name])
@@ -84,8 +95,10 @@ def run_integration_check(
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process(test_name, (found), files)
 
-        ######################################
+        ###########################################################################
         test_name = "Test 2 : Delete a file"
+        # Depends on: Test 1
+        ###########################################################################
         logger.debug(f"==> {test_name}")
         file_name = "test1.txt"
         file_path = delete_test_data(path=source_path, files=[file_name])
@@ -96,8 +109,9 @@ def run_integration_check(
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process(test_name, (not found), files)
 
-        ######################################
+        ###########################################################################
         test_name = "Test 3 : Create subfolder with files. Check last file only"
+        ###########################################################################
         logger.debug(f"==> {test_name}")
         files = []
         files.append("Subfolder3/test1.txt")
@@ -110,8 +124,9 @@ def run_integration_check(
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process(test_name, (found), files)
 
-        #####################################
+        ##########################################################################
         test_name = "Test 4 : Delete subfolder."
+        ###########################################################################
         logger.debug(f"==> {test_name}")
         files = []
         files.append("Subfolder4/test1")
@@ -140,8 +155,9 @@ def run_integration_check(
                 test_name, (not found), files, f"verify folder does not exist: {head}"
             )
 
-        ######################################
+        ###########################################################################
         test_name = "Test 5 : Rename file"
+        ###########################################################################
         logger.debug(f"==> {test_name}")
         files = ["old_file.txt"]
         old_file_path = create_test_data(path=source_path, files=files)
@@ -169,24 +185,28 @@ def run_integration_check(
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process(test_name, found, files, f"check {tail} found")
 
-        ######################################
+         ###########################################################################
         test_name = "Test 6 : Rename subfolder"
+        ###########################################################################
+        # Create Subfolder-old
         logger.debug(f"==> {test_name}")
         files = []
         files.append("Subfolder-old/test1.txt")
         files.append("Subfolder-old/test2.txt")
         file_path = create_test_data(path=source_path, files=files)
 
-        # Rename subfolder
-        head1 = file_path.parent
+        # Remove Subfolder-new if it exists
         new_path = Path(source_path) / Path("Subfolder-new")
         if new_path.exists():
             shutil.rmtree(new_path)
-        head2 = head1.replace(target=new_path.as_posix())
 
-        # Check if old folder has been deleted from destination
-        head = head1.parent
-        tail = head1.name
+        # Rename Subfolder-old to Subfolder-new
+        head_old = file_path.parent
+        head_new = head_old.replace(target=new_path.as_posix())
+
+        # Check if Subfolder-old has been deleted from destination
+        head = head_old.parent
+        tail = head_old.name
         dst_path = rclone_handler.get_destination_path(head)
         (found, files) = check_path.folder_exists(
             parent_path=dst_path, folder_name=tail
@@ -196,8 +216,8 @@ def run_integration_check(
         )
 
         # Check if new folder exists at destination
-        head = head2.parent
-        tail = head2.name
+        head = head_new.parent
+        tail = head_new.name
         dst_path = rclone_handler.get_destination_path(head)
         (found, files) = check_path.folder_exists(
             parent_path=dst_path, folder_name=tail
@@ -219,7 +239,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script runs integration tests for a monitor configured in a config.yaml file."
     )
-    parser.usage = "python test_monitor_handler_integration.py --config-path <path> --log-level <log level"
+    parser.usage = "python test_folder_monitor_integration.py --config-path <path> --log-level <log level"
     parser.add_argument(
         "--config-path",
         type=str,
@@ -259,6 +279,15 @@ if __name__ == "__main__":
     root_logger.addHandler(console_handler_real)
     root_logger.debug("Root logger configured with console handler.")
     # --- End Central Logging Setup ---
+
+    # First validate monitor config file
+    if not ConfigModels().validate(config_path=args.config_path, logger=root_logger):
+        root_logger.error(
+            f"Configuration file '{args.config_path}' is invalid. Exiting."
+        )
+        sys.exit(1)
+
+    root_logger.debug(f"Configuration file '{args.config_path}' is valid.")
 
     # Load configuration from the monitor config file
     with open(args.config_path, "r") as file:
@@ -320,12 +349,13 @@ if __name__ == "__main__":
         monitor_name = monitor.get("name")
         destination_path = monitor.get("destination_path")
         testing_config = monitor.get("testing")
+        check_delay = testing_config.get("check_delay", args.check_delay)
         process_test_result = run_integration_check(
             monitor_name=monitor_name,
             source_path=monitor_path,
             destination_path=destination_path,
             logger=logger,
-            check_delay=testing_config.get("check-delay", args.check_delay),
+            check_delay=check_delay,
         )
         process_test_results.append(process_test_result)
 

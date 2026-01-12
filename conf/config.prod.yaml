@@ -1,3 +1,4 @@
+version: "1.0"
 logging:
     log_file_name: folder_monitor.log
     log_folder: logs
@@ -42,5 +43,5 @@ monitors:
       backup:
         enabled: false
         interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
-        backup_mode: "copy"
+        mode: "copy"
    

@@ -42,6 +42,7 @@ import yaml
 import argparse
 import logging
 
+from config_models import ConfigModels
 from rclone_handler import RcloneHandler
 from monitor_handler import MonitorHandler
 from utils.logging_util import get_unique_logger
@@ -335,6 +336,14 @@ if __name__ == "__main__":
     )
     config_version = monitor_config.get("version")
     logger.debug(f"Configuration version: {config_version}")
+
+    # First validate monitor config file
+    if not ConfigModels().validate(config_path=args.config_path, logger=logger):
+        logger.error(
+            f"Configuration file '{args.config_path}' is invalid. Exiting."
+        )
+        sys.exit(1)
+
 
     # --- Configuration for PID file ---
     CRASH_PID_FILE = "pid/crash_pid.txt"

@@ -40,7 +40,7 @@ def run_integration_check(
         logger=logger,
         rclone_flags=rclone_flags,
     )
-    check_path = CheckPath(rclone_handler=rclone_handler, check_delay=0)
+    check_path = CheckPath(rclone_handler=rclone_handler, check_delay=check_delay)
 
     try:
         #############################################

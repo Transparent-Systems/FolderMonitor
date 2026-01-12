@@ -26,7 +26,7 @@ This project is a Python application that monitors a local folder for changes an
 
 - **Always ask for a plan** before making any code changes or running a script that modifies a file.
 - **Use the file system tools** (read, write, list) to understand the project structure and contents before answering.
-- **Refer to the `conf/config.yaml` file** for all configuration-related questions or tasks.
+- **Refer to the `conf/config.test.yaml` file** for all configuration-related questions or tasks.
 - **When suggesting a code change,** provide the full, modified file content, not just a patch, to ensure clarity and avoid confusion.
 - **Do not modify files in the `.venv/` or `.vscode/` or `example_scripts/` or `data/` directories.** These are development environment-specific and should not be touched.
 - **Prioritize readability and adherence to PEP 8.**
@@ -40,6 +40,7 @@ This project is a Python application that monitors a local folder for changes an
 - `scripts/testing_util.py`: Utility script for testing purposes.
 - `scripts/logging_util.py`: Utility script for logging purposes.
 - `scripts/rclone_util.py`: Utility script with rclone methods used in different Python scripts.
+- `scripts/config_models.py`: Script with classes to validate a config.yaml file.
 
 ### <PROTOCOL:PLAN>
 

@@ -1,4 +1,4 @@
-version: 1.0
+version: "1.0"
 
 logging:
   log_file_name: folder_monitor.log
@@ -41,10 +41,10 @@ monitors:
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test1"
     destination_path: "drive:test-foldermonitor/Test1"
     rclone_flags: "--transfers 8"
-    exclude-patterns: 
+    exclude_patterns: 
       - "excluded folder"
     # testing:
-    #   check-delay: 3
+    #   check_delay: 3
     backup:
       enabled: true
       interval: "0s" # Backup runs once only immediately after start. This is the default. Any previous folder changes will be submitted to the destination.
@@ -55,10 +55,29 @@ monitors:
     monitor_path: "D:/Development/FolderMonitor/data/Source/Test2"
     destination_path: "e2:test-foldermonitor/Test2"
     rclone_flags: "--transfers 8 --s3-no-check-bucket"
-    exclude-patterns: 
+    exclude_patterns: 
       - "excluded folder"
     testing:
-      check-delay: 3
+      check_delay: 3
+    backup:
+      enabled: true
+      interval: "0s"
+      mode: "copy"
+ 
+
+  - name: "internxt drive"
+    enabled: true
+    monitor_path: "D:/Development/FolderMonitor/data/Source/internxt-drive"
+    destination_path: "e2:test-foldermonitor/internxt-drive"
+    rclone_flags: >
+      --webdav-method PUT
+      --tpslimit 4
+      --ignore-times
+      --no-check-certificate
+    exclude_patterns: 
+      - "excluded folder"
+    testing:
+      check_delay: 3
     backup:
       enabled: true
       interval: "0s"

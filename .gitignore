@@ -8,6 +8,7 @@ temp
 logs
 pid
 snippets
+todo
 
 # Operating System files
 .DS_Store
