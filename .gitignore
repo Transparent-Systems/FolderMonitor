@@ -9,6 +9,8 @@ logs
 pid
 snippets
 todo
+build
+dist
 
 # Operating System files
 .DS_Store

@@ -1,7 +1,48 @@
-<img src="https://tsl003-aip.zoetebier.net/wp-content/uploads/2025/06/AIP_grey_transparent_background_github-e1750625832556.png" alt="AIP logo">
+<img src="https://aip.transparent.co.nz/wp-content/uploads/2025/06/AIP_grey_transparent_background_github-e1750625832556.png" alt="AIP logo">
 
-[Website](https://tsl003-aip.zoetebier.net) |
-[Documentation](https://tsl003-aip.zoetebier.net/foldermonitor/) |
+[Website](https://aip.transparent.co.nz) |
+[Documentation](https://aip.transparent.co.nz/foldermonitor/) |
+
+
+# 🚀 Quick Start
+
+1. **Install Python**: Download from [rclone.org](https://rclone.org/) and add it to your PATH.
+2. **Install rclone**: Download from [python.org](https://www.python.org/downloads/) and add it to your PATH.
+3. **Recommended: Setup Python Environment**:
+  
+    ```bash
+    # Create a virtual environment if needed, for example in your application folder
+    python -m venv .venv
+    
+    # Activate the environment
+    # On Windows:
+    .\.venv\Scripts\activate
+
+    # On macOS/Linux:
+    source .venv/bin/activate
+    ```
+
+4. **Install Requirements**:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+
+4. **Verify: Run the self-test script**:
+
+    ```bash
+    python check-env.py
+    ```
+
+6. **Verify: Validate your config.yaml file**:
+
+    ```bash
+    python config_models.py
+    ```
+
+7. **Run FolderMonitor**:    
+   python folder_monitor.py --config-path "./conf/config.yaml"
 
 
 # FolderMonitor
@@ -11,14 +52,6 @@ The target destination is usually a cloud storage provider like iDrive, BackBlaz
 Examples of other targets are a shared drive, a local drive or an FTP share.  
 FolderMonitor uses rclone as a tool to propagate changes.
 
-## Requirements
-
-| Requirement | Version | Comment |
-|---|---|---|
-| rclone | >= v1.64.2 | See: https://rclone.org/ |
-| Python | >= 3.13.0  | See: https://www.python.org/ |  
-| watchog | >= 6.0.0  | Python module. Version is in requirements.txt |  
-| PyYAML | >= 6.0.2   | Python module. Version is in requirements.txt |  
 
 ## Features
 
@@ -68,9 +101,10 @@ See file: COPYING.txt
 
 
 ## Why FolderMonitor
-You can find more information on website: https://tsl003-aip.transparent.co.nz
+You can find more information on website: https://aip.transparent.co.nz
 
-Project FolderMonitor grew organically over time as I tried to find solutions for issues I encountered while working on my PCs and servers.  
+Project FolderMonitor grew organically over time.
+All tools I used had some problem, like no real backup, cloud provider locking, hard to debug, huge CPU usage (let me guess ...)
 Initially I used OneDrive to "backup" files to the OneDrive cloud storage.  
 However with several file explorers running simulteneously the PC became unresponsive.  
 OneDrive was frequently using 100% CPU making working on the PC impossible.
@@ -96,25 +130,11 @@ This setup allowed me to get a different perspective and alternative solutions.
 
 ## Future development
 It is difficult to predict the future and what it measn for FolderMonitor.
-Future deelopment depends on community support and request coming from the community.
+Future development depends on community support and request coming from the community.
 
 Some new features could include:
-- Adding a delay timer before changes are propagated.    
-  This basically turns FolderMonitor into a dedicated taks scheduler to propagate file changes.  
-  This avoids the need to configure a job in TaskScheduler (Windows) or Cron (Linux)
-- A security tool.  
+- Intrusion detection and ransomware protection
   Monitoring changes of files and folders could trigger an alarm, like email, SMS message or a Discours event.
 - Trigger a CI/CD job
 - Develop a GUI to configure and start a monitor
-- Bundle the scripts into an application to facilitate application setup for non-technical users.
-  Some packaging and installation candidates are:
-  - PyInstaller
-  - cx_Freeze
-  - Briefcase
-  - Pip
-  - Conda
 
-  Each of these packaging tools have their pros and cons.  
-
-The main reason for a config.YAML file, instead of a monitor.INI file, was to easily add new features.
-With YAML it is much easier to extend the functionality of the application.
