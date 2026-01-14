@@ -5,6 +5,8 @@ __pycache__/
 
 # Project-specific files
 # Ignore all files in the following directories
+bat
+bin
 data
 temp
 logs
