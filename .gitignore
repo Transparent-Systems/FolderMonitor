@@ -40,7 +40,7 @@ htmlcov/
 
 # IDE-specific files
 .idea/
-.gemini
+.gemini/
 .vscode/
 *.iml
 *.iws
