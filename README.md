@@ -46,12 +46,13 @@
 
 
 # FolderMonitor
-
 FolderMonitor monitors a folder for changes and propagest thos changes to a target destination.  
 The target destination is usually a cloud storage provider like iDrive, BackBlaze, Amazon S3 or Google Drive.  
 Examples of other targets are a shared drive, a local drive or an FTP share.  
 FolderMonitor uses rclone as a tool to propagate changes.
 
+## Acknowledgments
+This project was developed with the assistance of Google Gemini.  
 
 ## Features
 
@@ -138,3 +139,8 @@ Some new features could include:
 - Trigger a CI/CD job
 - Develop a GUI to configure and start a monitor
 
+---
+### 👤 Author
+**John Zoetebier**
+- Website: [aip.transparent.co.nz](http://aip.transparent.co.nz)
+- GitHub: [@yourusername]

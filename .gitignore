@@ -1,5 +1,7 @@
-# Ignore Python cache folder
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
 
 # Project-specific files
 # Ignore all files in the following directories
@@ -17,10 +19,28 @@ dist
 Thumbs.db
 Desktop.ini
 
+# Virtual Environments
+.venv/
+venv/
+ENV/
+
+# Configuration and Secrets
+# We ignore the actual test config so you don't leak paths/passwords
+conf/config.yaml
+conf/config.test.yaml
+.env
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.pytest_cache/
+htmlcov/
+
 # IDE-specific files
 .idea/
 .vscode/
-.venv
 *.iml
 *.iws
 *.ipr
@@ -42,7 +62,6 @@ Desktop.ini
 node_modules/
 vendor/
 lib/
-venv/
 
 # Log files
 *.log
