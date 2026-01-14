@@ -3,19 +3,18 @@ Version: 1.0
 
 This script makes changes to the monitor_path to trigger events in the MonitorHandler
 The script depens on a folder_monitor running.
-folder_monitor runs in a separate script
-When folder_monitor would be started in this script there could be thread racing conditions that would affect the test results
-In addition: we want to test a running file_monitor not monitor_handler
+folder_monitor.py is started in another shell and runs as a seperate process
+
 Pre-requisites:
 Start folder_monitor using the same config.yaml file as this script
     From the application folder run:
-    python.exe ./scripts/folder_monitor.py --config-path conf/config.tests.yaml
+    python.exe folder_monitor.py --config-path conf/config.tests.yaml
 
 Important notes:
 1)
 This note relates to testing s3-compatible cloud storage.
 S3 storage (or compatible versions like IDrive e2) is an object storage system. It does not have a real foldr structure.
-Now, when in a tree with just 1 fie that file is deleted, the entire folder tree is gone!
+Now, when in a tree with just 1 fie that file is deleted, the entire folder tree is gone.
 For example: e2:mybucket/a/b/c/test1.txt
 After deleting test1.txt, the only thing remaining is: e2:mybucket
 2)
@@ -41,11 +40,25 @@ sys.path.insert(0, scriptspath.resolve().as_posix())
 
 from config_models import ConfigModels
 from rclone_handler import RcloneHandler
-from utils.testing_util import create_test_data, delete_test_data, ProcessTestResult
+from utils.testing_util import create_test_data, delete_test_data, create_big_file, ProcessTestResult
 from utils.rclone_util import CheckPath
 from utils.logging_util import get_unique_logger
 
 
+"""
+Pre-requisite: 
+1) folder_monitor.py must be running with same config.yaml file as this script
+2) Ensure that for testing purposes the test-delay in the config.yaml file is set to a value big enough to allow the monitor to process events
+    This depends mainly on the cloud storage used and the performance of the system running folder_monitor.py
+
+Description of test cases
+Trigger events in monitor path src_path.
+Then check if the expected result is found at destination path dst_path.
+The rclone_handler is used to check files at the destination path.
+
+All files and folder created will be in test subfolder
+That way we can safely remove that test subfolder from source and destination
+"""
 def run_integration_check(
     monitor_name: str,
     source_path="data/Source",
@@ -53,21 +66,8 @@ def run_integration_check(
     logger=None,
     check_delay=1,
 ):
-    """
-    Pre-requisite: 
-    1) folder_monitor.py must be running with same config.yaml file as this script
-    2) Ensure that for testing purposes the test-delay in the config.yaml file is set to a value big enough to allow the monitor to process events
-        This depends mainly on the cloud storage used and the performance of the system running folder_monitor.py
 
-    Description of test cases
-    Trigger events in monitor path src_path.
-    Then check if the expected result is found at destination path dst_path.
-    The rclone_handler is used to check files at the destination path.
-
-    All files and folder created will be in test subfolder
-    That way we can safely remove that test subfolder from source and destination
-    """
-    logger.debug("--- Rclone Integration Check ---")
+    logger.debug("--- FolderMonitor Integration Check ---")
 
     # Create rclone_handler to check files at destination_path
     rclone_handler = RcloneHandler(
@@ -76,13 +76,68 @@ def run_integration_check(
         logger=logger,
         rclone_flags="",
     )
-    process_test_result = ProcessTestResult(monitor_name)
+
+    process_test_result = ProcessTestResult(testsuite_name=monitor_name)
     check_path = CheckPath(rclone_handler=rclone_handler, check_delay=check_delay)
     logger.debug(
         f"Starting tests for monitor name [{monitor_name}] on monitor path [{source_path}]..."
     )
 
     try:
+        #############################################
+        test_name = "Test 0: Testing utils"
+        #############################################
+        logger.debug(f"==> {test_name}")
+        file_name = "Subfolder1/test1.txt"
+        # Create source file first, otherwise rclone_handler.copy_file may fail
+        file_path = create_test_data(path=source_path, files=[file_name])
+        (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
+        if result_code == 0:
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
+            )
+
+            process_test_result.process(
+                test_name, (found and not isdir), files, f"verify this is a file: {dst_path}"
+            )
+
+            # Now check a file that does not exist
+            dst_path = Path(source_path) / Path("file-does-not-exists.txt")
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
+            )
+            process_test_result.process(
+                test_name, (not found), files, f"verify file does not exist: {dst_path}"
+            )
+
+            # Now check Subfolder1 has been created at destination
+            subfolder_path= Path(source_path) / Path("Subfolder1")
+            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
+            )
+            process_test_result.process(
+                test_name,
+                (found and isdir),
+                files,
+                f"verify this is a directory: {dst_path}",
+            )
+
+            # Now check for a non-existent folder
+            subfolder_path= Path(source_path) / Path("folder_does_not_exist")
+            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
+            )
+            process_test_result.process(
+                test_name, (not found), files, f"verify directory does not exist: {subfolder_path.name}"
+            )
+        else:
+            process_test_result.process(
+                test_name, (False), result_output, f"copy file {file_name}"
+            )
+
         ##########################################################################
         test_name = "Test 1 : Create new file"
         ###########################################################################
@@ -185,7 +240,7 @@ def run_integration_check(
         (found, files) = check_path.file_exists(parent_path=dst_path, file_name=tail)
         process_test_result.process(test_name, found, files, f"check {tail} found")
 
-         ###########################################################################
+        ###########################################################################
         test_name = "Test 6 : Rename subfolder"
         ###########################################################################
         # Create Subfolder-old
@@ -223,6 +278,88 @@ def run_integration_check(
             parent_path=dst_path, folder_name=tail
         )
         process_test_result.process(test_name, found, files, f"check {tail} found")
+
+        #############################################
+        test_name = "Test 7: Write big file"
+        #############################################
+        logger.debug(f"==> {test_name}")
+        file_name = "big-test-file.txt"
+
+        # Delete big file first as a pre-condition
+        file_path = delete_test_data(path=source_path, files=[file_name])
+        logger.debug(f"Deleted source file : '{file_path}'")
+
+        # Check file exists at destination path
+        dst_path = rclone_handler.get_destination_path(path=file_path)
+        (found, isdir, files) = check_path.path_exists(
+            path=dst_path
+        )
+
+        process_test_result.process(
+            test_name, (not found), files, f"Verify that file does not exist at destination: {dst_path}"
+        )
+
+        # Now create the same big file
+        file_path = create_big_file(
+            path=source_path, filename=file_name, write_duration_seconds=6
+        )
+
+        # Check file has been created at destination path
+        dst_path = rclone_handler.get_destination_path(path=file_path)
+        (found, isdir, files) = check_path.path_exists(
+            path=dst_path
+        )
+
+        process_test_result.process(
+            test_name, (found), files, f"Verify this is a file: {dst_path}"
+        )
+        #############################################
+
+        #############################################
+        test_name = "Test 8: Write many files"
+        # The purpose of this test is to check if no files are skipped by the monitor when files are created rapidly
+        #############################################
+        logger.debug(f"==> {test_name}")
+
+        file_paths = []
+        max_file_count = 6
+        for i in range(1, max_file_count):
+            file_name = f"many_files_{i}.txt"
+            # Delete files first
+            file_path = delete_test_data(path=source_path, files=[file_name])
+            logger.debug(f"Deleted source file : '{file_path}'")
+            file_paths.append(file_path)
+
+        # Now check files do not exist (anymore) at destiation
+        for file_path in file_paths:
+            # Check file exists at destination path
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=file_path
+            )
+
+            process_test_result.process(
+                test_name, (not found), files, f"Verify that file does not exist at destination: {dst_path}"
+            )
+
+        # Now create many files at once before checking
+        file_paths = []
+        for i in range(1, max_file_count):
+            file_name = f"many_files_{i}.txt"
+            file_path = create_test_data(path=source_path, files=[file_name])
+            file_paths.append(file_path)
+
+        # Check files have been created at destination path
+        for file_path in file_paths:
+            dst_path = rclone_handler.get_destination_path(path=file_path)
+            (found, isdir, files) = check_path.path_exists(
+                path=dst_path
+            )
+
+            process_test_result.process(
+                test_name, (found), files, f"Verify file exists at destination: {dst_path}"
+            )
+        #############################################
 
     except Exception as e:
         logger.debug(f"\n--- Integration check for {monitor_name} FAILED: {e} ---")

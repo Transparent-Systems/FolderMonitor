@@ -24,6 +24,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from watchdog.events import (
     FileSystemEvent,
+    FileClosedEvent,
     FileCreatedEvent,
     FileDeletedEvent,
     FileModifiedEvent,
@@ -31,8 +32,6 @@ from watchdog.events import (
     DirCreatedEvent,
     DirDeletedEvent,
     DirMovedEvent,
-    DirModifiedEvent,
-    FileClosedEvent,
 )
 from rclone_handler import RcloneHandler
 from utils.rclone_util import CheckPath
@@ -95,7 +94,7 @@ class MyEventHandler(FileSystemEventHandler):
         Args:
             event (FileSystemEvent): The event object representing the file system change.
         """
-        self.logger.debug(f"Event type: {event.event_type}  Path: {event.src_path}")
+        self.logger.debug(f"on_any_event: Event type: {event.event_type}  Path: {event.src_path}")
         pass
 
     def on_created(self, event):
@@ -202,24 +201,17 @@ class MyEventHandler(FileSystemEventHandler):
             )
             return
 
-        # If the source path no longer exists (e.g., it was a temporary file
-        # that was quickly created and then deleted, or a directory event),
-        # we skip processing to avoid errors.
-        if not Path(event.src_path).exists():
-            return
-
-        self.rclone_handler.copy_file(source_path=event.src_path)
-        return
+        # For directories, on_modified is typically not used for copying as DirCreatedEvent handles initial creation
+        # and subsequent file events handle content.
+        if not event.is_directory:
+            self.rclone_handler.copy_file(source_path=event.src_path)
 
     def on_closed(self, event) -> None:
         """
-        Handles file closed events.
-
-        This method is triggered when a file is closed after being written to.
-        It's particularly useful for ensuring that large files are copied only
-        after their content is fully written and the file handle is released.
-        Args:
-            event (FileClosedEvent): The closed event object."""
+        Handles FileClosedEvent
+        Event FileClosedEvent is not triggered on Windows 11
+        That's why we handle file creation in the on_modified event.
+        """
         
         if is_excluded(event.src_path, self.exclude_patterns):
             self.logger.debug(
@@ -227,7 +219,10 @@ class MyEventHandler(FileSystemEventHandler):
             )
             return
 
-        if not Path(event.src_path).exists():
+        # Check if the file still exists. It might have been deleted right after closing.
+        # This is especially relevant for temporary files that are created, written, closed, and then immediately deleted.
+        # Also, if the event is for a directory, we don't want to copy it here.
+        if not Path(event.src_path).exists() or event.is_directory:
             return
         
         # Log the closed event details.
@@ -361,6 +356,7 @@ class MonitorHandler:
             FileDeletedEvent,
             FileModifiedEvent,
             FileMovedEvent,
+            FileClosedEvent,
             DirCreatedEvent,
             DirDeletedEvent,
             DirMovedEvent,
@@ -368,7 +364,6 @@ class MonitorHandler:
             # IMPORTANT: Exclude DirModifiedEvent if you don't want folder access_time changes or other non-content
             # directory modifications to trigger on_modified. Including it can lead to excessive events.
             # If you uncomment the next line, DirModifiedEvent will be included in the events processed.
-            # DirModifiedEvent, # <--- DO NOT INCLUDE THIS IF YOU WANT TO FILTER OUT FOLDER ACCESS CHANGES
         ]
 
         self.observer.schedule(
@@ -377,7 +372,7 @@ class MonitorHandler:
             recursive=True,
             event_filter=event_types_to_monitor,
         )
-        # self.observer.schedule(event_handler, self.monitor_path, recursive=True)
+
         self.observer.start()
         self.logger.info(
             f"Observer {self.observer.name} started on folder {self.monitor_path}"

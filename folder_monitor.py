@@ -34,6 +34,7 @@ Entry Point:
 """
 
 import os
+from pathlib import Path
 import queue
 import sys
 import threading
@@ -41,6 +42,10 @@ import time
 import yaml
 import argparse
 import logging
+
+# Add the scripts directory to the Python path
+scriptspath = Path(__file__).parent / Path("scripts")
+sys.path.insert(0, scriptspath.resolve().as_posix())
 
 from config_models import ConfigModels
 from rclone_handler import RcloneHandler
