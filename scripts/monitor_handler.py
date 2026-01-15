@@ -323,14 +323,9 @@ class MyEventHandler(FileSystemEventHandler):
             if self.retry_manager.is_in_queue(event.src_path):
                 return
             
-            # Check stability
-            # Use 0.5s wait time to minimize blocking the observer thread
-            if not is_file_stable(event.src_path, wait_time=0.5):
-                self.logger.info(f"File {event.src_path} is unstable. Adding to retry queue.")
-                self.retry_manager.add_to_queue(event.src_path)
-                return
-            
+            # Do not check file stability as it will block the main thread.
             # Try to copy
+            # If the copy fails we add it to a retry queue
             return_code, output = self.rclone_handler.copy_file(source_path=event.src_path)
             if return_code != 0:
                 self.logger.warning(f"Copy failed for {event.src_path}, adding to retry queue. Code: {return_code}")

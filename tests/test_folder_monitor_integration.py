@@ -290,9 +290,8 @@ def run_integration_check(
         file_path = delete_test_data(path=source_path, files=[file_name])
         logger.debug(f"Deleted source file : '{file_path}'")
 
-        # Check file exists at destination path
-        # Wait before checking as this is a big file
-        wait_seconds = 10
+        # Wait before checking  at destination path
+        wait_seconds = 3
         logger.debug(f"Waiting for another {wait_seconds} seconds before checking big file ...")
         time.sleep(wait_seconds)
         dst_path = rclone_handler.get_destination_path(path=file_path)
