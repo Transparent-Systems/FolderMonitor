@@ -17,6 +17,8 @@ Classes:
 
 import logging
 import fnmatch
+import time
+import threading
 
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
@@ -58,6 +60,80 @@ def is_excluded(path_str: str, exclude_patterns: list[str]) -> bool:
     
     return False
 
+class RetryManager:
+    """
+    Manages a queue of files that failed to copy and retries them periodically.
+    """
+    def __init__(self, rclone_handler: RcloneHandler, logger: logging.Logger, check_interval: int = 10, expiry_time: int = 600):
+        self.rclone_handler = rclone_handler
+        self.logger = logger
+        self.check_interval = check_interval
+        self.expiry_time = expiry_time
+        self.retry_queue = {}  # Dict[str, float] -> {file_path: timestamp_added}
+        self.lock = threading.Lock()
+        self.running = False
+        self.thread = None
+
+    def start(self):
+        self.running = True
+        self.thread = threading.Thread(target=self._worker, daemon=True)
+        self.thread.start()
+        self.logger.info("RetryManager started.")
+
+    def stop(self):
+        self.running = False
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=2)
+        self.logger.info("RetryManager stopped.")
+
+    def add_to_queue(self, file_path: str):
+        with self.lock:
+            if file_path not in self.retry_queue:
+                self.retry_queue[file_path] = time.time()
+                self.logger.info(f"Added to retry queue: {file_path}")
+
+    def remove_from_queue(self, file_path: str):
+        with self.lock:
+            if file_path in self.retry_queue:
+                del self.retry_queue[file_path]
+                self.logger.info(f"Removed from retry queue: {file_path}")
+
+    def is_in_queue(self, file_path: str) -> bool:
+        with self.lock:
+            return file_path in self.retry_queue
+
+    def _worker(self):
+        while self.running:
+            time.sleep(self.check_interval)
+            
+            with self.lock:
+                files_to_process = list(self.retry_queue.keys())
+            
+            for file_path in files_to_process:
+                if not self.running:
+                    break
+
+                with self.lock:
+                    if file_path not in self.retry_queue:
+                        continue
+                    timestamp = self.retry_queue[file_path]
+                
+                # Check expiry
+                if time.time() - timestamp > self.expiry_time:
+                    self.logger.warning(f"File expired in retry queue, removing: {file_path}")
+                    self.remove_from_queue(file_path)
+                    continue
+
+                # Try copy
+                self.logger.debug(f"Retrying copy for: {file_path}")
+                return_code, output = self.rclone_handler.copy_file(source_path=file_path)
+                
+                if return_code == 0:
+                    self.logger.info(f"Retry success for: {file_path}")
+                    self.remove_from_queue(file_path)
+                else:
+                    self.logger.debug(f"Retry failed for: {file_path}. Return code: {return_code}")
+
 
 class MyEventHandler(FileSystemEventHandler):
     """
@@ -71,13 +147,15 @@ class MyEventHandler(FileSystemEventHandler):
     check_path: CheckPath
     logger: logging.Logger
     exclude_patterns: list[str]
+    retry_manager: RetryManager
 
 
     def __init__(
-        self, rclone_handler: RcloneHandler, monitor_config: dict, logger: logging.Logger | None = None
+        self, rclone_handler: RcloneHandler, retry_manager: RetryManager, monitor_config: dict, logger: logging.Logger | None = None
     ):
         super().__init__()
         self.rclone_handler = rclone_handler
+        self.retry_manager = retry_manager
         self.check_path = CheckPath(rclone_handler=rclone_handler)
         self.exclude_patterns = monitor_config.get("exclude_patterns", [])
         self.logger = logger or logging.getLogger(__name__)
@@ -190,6 +268,15 @@ class MyEventHandler(FileSystemEventHandler):
         So, we check if the path exist, if not, then skip further processing
         """
 
+        # If file is already in queue, ignore this event silently as
+        #   this event has been triggered by rclone copy in RetryManager
+        if self.retry_manager.is_in_queue(event.src_path):
+            # Log event has been triggered by RetryManager
+            self.logger.debug(
+                f"on_modified: event was triggered by RetryManager, src_path='{event.src_path}'"
+            )
+            return
+
         self.logger.info(
             # Log the modification event details.
             f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
@@ -204,7 +291,15 @@ class MyEventHandler(FileSystemEventHandler):
         # For directories, on_modified is typically not used for copying as DirCreatedEvent handles initial creation
         # and subsequent file events handle content.
         if not event.is_directory:
-            self.rclone_handler.copy_file(source_path=event.src_path)
+            # If file is already in queue, ignore this event silently
+            if self.retry_manager.is_in_queue(event.src_path):
+                return
+            
+            # Try to copy
+            return_code, output = self.rclone_handler.copy_file(source_path=event.src_path)
+            if return_code != 0:
+                self.logger.warning(f"Copy failed for {event.src_path}, adding to retry queue. Code: {return_code}")
+                self.retry_manager.add_to_queue(event.src_path)
 
     def on_closed(self, event) -> None:
         """
@@ -229,6 +324,10 @@ class MyEventHandler(FileSystemEventHandler):
         self.logger.info(
             f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
         )
+        
+        # If in retry queue, remove it (optimization for Linux where on_closed fires)
+        if self.retry_manager.is_in_queue(event.src_path):
+            self.retry_manager.remove_from_queue(event.src_path)
 
         # When a file is closed (finished writing), copy it to the destination.
         # This is often more reliable for large files than on_modified.
@@ -303,6 +402,7 @@ class MonitorHandler:
         self.log_config = log_config
         self.monitor_enabled = monitor_config.get("enabled")
         self.observer = None
+        self.retry_manager = None
         # # Create LoggingHandler instance
         self.logger = get_unique_logger(
             log_config.get("log_level", "INFO").upper()
@@ -344,7 +444,17 @@ class MonitorHandler:
         rclone_handler = RcloneHandler(
             self.destination_path, self.monitor_path, self.logger, self.rclone_flags
         )
-        event_handler = MyEventHandler(rclone_handler=rclone_handler, monitor_config=self.monitor_config, logger=self.logger)
+        
+        # Initialize and start RetryManager
+        self.retry_manager = RetryManager(rclone_handler, self.logger)
+        self.retry_manager.start()
+
+        event_handler = MyEventHandler(
+            rclone_handler=rclone_handler, 
+            retry_manager=self.retry_manager, 
+            monitor_config=self.monitor_config, 
+            logger=self.logger
+        )
         self.observer = Observer()
 
         # Define the event filter:
@@ -389,3 +499,7 @@ class MonitorHandler:
             self.observer.join()
             self.logger.info("Monitor stopped.")
             self.observer = None
+        
+        if self.retry_manager is not None:
+            self.retry_manager.stop()
+            self.retry_manager = None

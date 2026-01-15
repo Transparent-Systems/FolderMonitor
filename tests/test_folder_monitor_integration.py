@@ -85,6 +85,42 @@ def run_integration_check(
 
     try:
         #############################################
+        test_name = "Test 7: Write big file"
+        #############################################
+        logger.debug(f"==> {test_name}")
+        file_name = "big-test-file.txt"
+
+        # Delete big file first as a pre-condition
+        file_path = delete_test_data(path=source_path, files=[file_name])
+        logger.debug(f"Deleted source file : '{file_path}'")
+
+        # Check file exists at destination path
+        dst_path = rclone_handler.get_destination_path(path=file_path)
+        (found, isdir, files) = check_path.path_exists(
+            path=dst_path
+        )
+
+        process_test_result.process(
+            test_name, (not found), files, f"Verify that file does not exist at destination: {dst_path}"
+        )
+
+        # Now create the same big file
+        file_path = create_big_file(
+            path=source_path, filename=file_name, write_duration_seconds=20
+        )
+
+        # Check file has been created at destination path
+        dst_path = rclone_handler.get_destination_path(path=file_path)
+        (found, isdir, files) = check_path.path_exists(
+            path=dst_path
+        )
+
+        process_test_result.process(
+            test_name, (found), files, f"Verify this is a file: {dst_path}"
+        )
+        #############################################
+
+        #############################################
         test_name = "Test 0: Testing utils"
         #############################################
         logger.debug(f"==> {test_name}")
