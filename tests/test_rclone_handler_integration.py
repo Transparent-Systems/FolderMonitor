@@ -57,18 +57,18 @@ def run_integration_check(
             # dst_path = rclone_handler.get_destination_path(path=head)
             dst_path = rclone_handler.get_destination_path(path=file_path)
             (found, isdir, files) = check_path.path_exists(
-                source_path=dst_path
+                path=dst_path
             )
 
             # Check this is a file
             process_test_result.process(
-                testname, (found and not isdir), files, f"verify this is a file: {tail}"
+                testname, (found and not isdir), files, f"verify this is a file: {dst_path}"
             )
 
             # Now check a file that does not exist
             dst_path = Path(source_path) / Path("file-does-not-exists.txt")
             (found, isdir, files) = check_path.path_exists(
-                source_path=dst_path
+                path=dst_path
             )
             process_test_result.process(
                 testname, (not found), files, f"verify file does not exist: {dst_path}"
@@ -78,7 +78,7 @@ def run_integration_check(
             subfolder_path= Path(source_path) / Path("Subfolder1")
             dst_path = rclone_handler.get_destination_path(path=subfolder_path)
             (found, isdir, files) = check_path.path_exists(
-                source_path=dst_path
+                path=dst_path
             )
             process_test_result.process(
                 testname,
@@ -91,7 +91,7 @@ def run_integration_check(
             subfolder_path= Path(source_path) / Path("folder_does_not_exist")
             dst_path = rclone_handler.get_destination_path(path=subfolder_path)
             (found, isdir, files) = check_path.path_exists(
-                source_path=dst_path
+                path=dst_path
             )
             process_test_result.process(
                 testname, (not found), files, f"verify directory does not exist: {subfolder_path.name}"
@@ -274,7 +274,7 @@ def run_integration_check(
         if result_code == 0:
             dst_path = rclone_handler.get_destination_path(path=file_path)
             (found, isdir, files) = check_path.path_exists(
-                source_path=dst_path
+                path=dst_path
             )
 
             # Check this is a file
@@ -296,9 +296,9 @@ def run_integration_check(
         (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
         if result_code == 0:
             parent = file_path.parent
-            dst_path = rclone_handler.get_destination_path(path=file_path)
+            dst_path = rclone_handler.get_destination_path(path=parent)
             (found, isdir, files) = check_path.path_exists(
-                source_path=dst_path
+                path=dst_path
             )
 
             # Check this is a folder
