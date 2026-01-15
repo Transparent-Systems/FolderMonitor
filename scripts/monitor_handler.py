@@ -60,11 +60,34 @@ def is_excluded(path_str: str, exclude_patterns: list[str]) -> bool:
     
     return False
 
+
+def is_file_stable(file_path: str, wait_time: float = 1.0) -> bool:
+    """
+    Checks if a file is stable by comparing its size after a short wait.
+    Returns True if file size remains constant, False otherwise.
+    """
+    try:
+        path = Path(file_path)
+        if not path.exists():
+            return False
+        
+        initial_size = path.stat().st_size
+        time.sleep(wait_time)
+        
+        if not path.exists():
+            return False
+            
+        final_size = path.stat().st_size
+        return initial_size == final_size
+    except OSError:
+        return False
+
+
 class RetryManager:
     """
     Manages a queue of files that failed to copy and retries them periodically.
     """
-    def __init__(self, rclone_handler: RcloneHandler, logger: logging.Logger, check_interval: int = 10, expiry_time: int = 600):
+    def __init__(self, rclone_handler: RcloneHandler, logger: logging.Logger, check_interval: int = 10, expiry_time: int = 60):
         self.rclone_handler = rclone_handler
         self.logger = logger
         self.check_interval = check_interval
@@ -122,6 +145,11 @@ class RetryManager:
                 if time.time() - timestamp > self.expiry_time:
                     self.logger.warning(f"File expired in retry queue, removing: {file_path}")
                     self.remove_from_queue(file_path)
+                    continue
+
+                # Check stability
+                if not is_file_stable(file_path, wait_time=1.0):
+                    self.logger.debug(f"File {file_path} is unstable (changing size). Skipping retry.")
                     continue
 
                 # Try copy
@@ -217,6 +245,10 @@ class MyEventHandler(FileSystemEventHandler):
         # Log the deletion event with the source path
         self.logger.info(f"on_deleted: src_path='{event.src_path}'")
 
+        # If in retry queue, remove it so we don't keep retrying a deleted file
+        if self.retry_manager.is_in_queue(event.src_path):
+            self.retry_manager.remove_from_queue(event.src_path)
+
         if is_excluded(event.src_path, self.exclude_patterns):
             self.logger.debug(
                 f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
@@ -268,13 +300,8 @@ class MyEventHandler(FileSystemEventHandler):
         So, we check if the path exist, if not, then skip further processing
         """
 
-        # If file is already in queue, ignore this event silently as
-        #   this event has been triggered by rclone copy in RetryManager
+        # If file is already in retry queue, ignore this event silently
         if self.retry_manager.is_in_queue(event.src_path):
-            # Log event has been triggered by RetryManager
-            self.logger.debug(
-                f"on_modified: event was triggered by RetryManager, src_path='{event.src_path}'"
-            )
             return
 
         self.logger.info(
@@ -293,6 +320,13 @@ class MyEventHandler(FileSystemEventHandler):
         if not event.is_directory:
             # If file is already in queue, ignore this event silently
             if self.retry_manager.is_in_queue(event.src_path):
+                return
+            
+            # Check stability
+            # Use 0.5s wait time to minimize blocking the observer thread
+            if not is_file_stable(event.src_path, wait_time=0.5):
+                self.logger.info(f"File {event.src_path} is unstable. Adding to retry queue.")
+                self.retry_manager.add_to_queue(event.src_path)
                 return
             
             # Try to copy
@@ -345,6 +379,10 @@ class MyEventHandler(FileSystemEventHandler):
             event (FileMovedEvent or DirMovedEvent): The move/rename event object.
                 `event.src_path` is the old path, and `event.dest_path` is the new path.
         """
+        
+        # If in retry queue, remove it so we don't keep retrying a moved file
+        if self.retry_manager.is_in_queue(event.src_path):
+            self.retry_manager.remove_from_queue(event.src_path)
 
         if is_excluded(event.src_path, self.exclude_patterns):
             self.logger.debug(
