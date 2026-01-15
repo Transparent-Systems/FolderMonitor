@@ -260,6 +260,7 @@ class MyEventHandler(FileSystemEventHandler):
         # This handles cases where an entire directory is removed.
         if event.is_directory: # This code is never reached as watchdog does not trigger DirDeletedEvent
             # If the event is a directory deletion, we delete the entire folder
+            destination_path = self.rclone_handler.get_destination_path(path=event.src_path)
             self.rclone_handler.delete_folder(destination_path=destination_path)
             return
 
