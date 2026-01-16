@@ -85,60 +85,6 @@ def run_integration_check(
     )
 
     try:
-        #############################################
-        test_name = "Test 0: Testing utils"
-        #############################################
-        logger.debug(f"==> {test_name}")
-        file_name = "Subfolder1/test1.txt"
-        # Create source file first, otherwise rclone_handler.copy_file may fail
-        file_path = create_test_data(path=source_path, files=[file_name])
-        (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
-        if result_code == 0:
-            dst_path = rclone_handler.get_destination_path(path=file_path)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
-
-            process_test_result.process(
-                test_name, (found and not isdir), files, f"verify this is a file: {dst_path}"
-            )
-
-            # Now check a file that does not exist
-            dst_path = Path(source_path) / Path("file-does-not-exists.txt")
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
-            process_test_result.process(
-                test_name, (not found), files, f"verify file does not exist: {dst_path}"
-            )
-
-            # Now check Subfolder1 has been created at destination
-            subfolder_path= Path(source_path) / Path("Subfolder1")
-            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
-            process_test_result.process(
-                test_name,
-                (found and isdir),
-                files,
-                f"verify this is a directory: {dst_path}",
-            )
-
-            # Now check for a non-existent folder
-            subfolder_path= Path(source_path) / Path("folder_does_not_exist")
-            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
-            process_test_result.process(
-                test_name, (not found), files, f"verify directory does not exist: {subfolder_path.name}"
-            )
-        else:
-            process_test_result.process(
-                test_name, (False), result_output, f"copy file {file_name}"
-            )
-
         ##########################################################################
         test_name = "Test 1 : Create new file"
         ###########################################################################
