@@ -11,7 +11,7 @@ Requirements:
     2) Python 3.13.0 (https://www.python.org/downloads/)
     3) Python modules in requirements.txt
 Classes:
-    MyEventHandler: Handles file system events and triggers rclone operations.
+    MonitorEventHandler: Handles file system events and triggers rclone operations.
     MonitorHandler: Manages the observer and event handler lifecycle.
 """
 
@@ -82,7 +82,7 @@ class MonitorEventHandler(FileSystemEventHandler):
         self.action_dispatcher = action_dispatcher
         self.exclude_patterns = monitor_config.get("exclude_patterns", [])
         self.logger = logger or logging.getLogger(__name__)
-        self.logger.debug("MyEventHandler initialized")
+        self.logger.debug("MonitorEventHandler initialized")
 
     def on_any_event(self, event):
         """
@@ -237,7 +237,7 @@ class MonitorHandler:
     for changes and trigger rclone operations based on those changes.
 
     This class initializes an `Observer` from the `watchdog` library and
-    associates it with a `MyEventHandler` instance. It handles the starting
+    associates it with a `MonitorEventHandler` instance. It handles the starting
     and stopping of the monitoring process.
 
     Attributes:
@@ -290,7 +290,7 @@ class MonitorHandler:
         """
         Starts monitoring the specified folder for changes.
 
-        Initializes an `RcloneHandler` and `MyEventHandler`, then schedules
+        Initializes an `RcloneHandler` and `MonitorEventHandler`, then schedules
         the observer to monitor the `monitor_path` recursively, filtering out
         `DirModifiedEvent` to reduce noise.
         """
