@@ -91,15 +91,10 @@ class RcloneActionHandler(ActionHandler):
     """
     Action handler that executes rclone commands.
     """
-    def __init__(self, rclone_handler: RcloneHandler, retry_manager=None, logger: logging.Logger = None, debounce_delay: float = 2.0):
+    def __init__(self, rclone_handler: RcloneHandler, logger: logging.Logger = None, debounce_delay: float = 2.0):
         self.rclone_handler = rclone_handler
-        self.retry_manager = retry_manager
         self.logger = logger or logging.getLogger(__name__)
-        self.debounce_manager = DebounceManager(
-            callback=self._execute_copy,
-            logger=self.logger,
-            delay=debounce_delay
-        )
+        self.debounce_manager = DebounceManager(self._execute_copy, self.logger, delay=debounce_delay)
         self.debounce_manager.start()
 
     def stop(self):
@@ -124,14 +119,9 @@ class RcloneActionHandler(ActionHandler):
         """
         Executes the copy operation. Used by both DebounceManager and immediate calls.
         """
-        # Double check if in retry queue (though caller might have checked, DebounceManager callback doesn't know)
-        if self.retry_manager and self.retry_manager.is_in_queue(src_path):
-            return
-
         return_code, output = self.rclone_handler.copy_file(source_path=src_path)
-        if return_code != 0 and self.retry_manager:
-            self.logger.warning(f"Copy failed for {src_path}, adding to retry queue. Code: {return_code}")
-            self.retry_manager.add_to_queue(src_path)
+        if return_code != 0:
+            self.logger.warning(f"Copy failed for {src_path}. Code: {return_code}")
 
     def _handle_created(self, context: ActionContext):
         # In the original code, created for files was postponed to modified/closed.
@@ -141,10 +131,6 @@ class RcloneActionHandler(ActionHandler):
     def _handle_deleted(self, context: ActionContext):
         # Cancel any pending debounce for this file
         self.debounce_manager.cancel_event(context.src_path)
-
-        # Remove from retry queue if present
-        if self.retry_manager and self.retry_manager.is_in_queue(context.src_path):
-            self.retry_manager.remove_from_queue(context.src_path)
 
         destination_path = self.rclone_handler.get_destination_path(context.src_path)
         
@@ -158,10 +144,6 @@ class RcloneActionHandler(ActionHandler):
         if context.is_directory:
             return
 
-        # If file is already in retry queue, ignore
-        if self.retry_manager and self.retry_manager.is_in_queue(context.src_path):
-            return
-
         # Instead of copying immediately, add to debounce manager
         self.debounce_manager.add_event(context.src_path)
 
@@ -172,18 +154,12 @@ class RcloneActionHandler(ActionHandler):
         # Cancel pending debounce as we will process it now
         self.debounce_manager.cancel_event(context.src_path)
 
-        if self.retry_manager and self.retry_manager.is_in_queue(context.src_path):
-            self.retry_manager.remove_from_queue(context.src_path)
-
         # Execute copy immediately
         self._execute_copy(context.src_path)
 
     def _handle_moved(self, context: ActionContext):
         # Cancel pending debounce for the old path
         self.debounce_manager.cancel_event(context.src_path)
-
-        if self.retry_manager and self.retry_manager.is_in_queue(context.src_path):
-            self.retry_manager.remove_from_queue(context.src_path)
 
         if context.is_directory:
             dest_old = self.rclone_handler.get_destination_path(context.src_path)

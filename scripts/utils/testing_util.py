@@ -36,7 +36,7 @@ def create_big_file(
     path: str,
     filename: str,
     write_duration_seconds: int = 10,
-    write_interval_seconds: float = 0.5,
+    write_interval_seconds: float = 0.2,
     chunk_size_bytes: int = 1024 * 50,
 ):
     """

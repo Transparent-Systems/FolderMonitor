@@ -62,108 +62,6 @@ def is_excluded(path_str: str, exclude_patterns: list[str]) -> bool:
     return False
 
 
-def is_file_stable(file_path: str, wait_time: float = 1.0) -> bool:
-    """
-    Checks if a file is stable by comparing its size after a short wait.
-    Returns True if file size remains constant, False otherwise.
-    """
-    try:
-        path = Path(file_path)
-        if not path.exists():
-            return False
-        
-        initial_size = path.stat().st_size
-        time.sleep(wait_time)
-        
-        if not path.exists():
-            return False
-            
-        final_size = path.stat().st_size
-        return initial_size == final_size
-    except OSError:
-        return False
-
-
-class RetryManager:
-    """
-    Manages a queue of files that failed to copy and retries them periodically.
-    """
-    def __init__(self, rclone_handler: RcloneHandler, logger: logging.Logger, check_interval: int = 10, expiry_time: int = 60):
-        self.rclone_handler = rclone_handler
-        self.logger = logger
-        self.check_interval = check_interval
-        self.expiry_time = expiry_time
-        self.retry_queue = {}  # Dict[str, float] -> {file_path: timestamp_added}
-        self.lock = threading.Lock()
-        self.running = False
-        self.thread = None
-
-    def start(self):
-        self.running = True
-        self.thread = threading.Thread(target=self._worker, daemon=True)
-        self.thread.start()
-        self.logger.info("RetryManager started.")
-
-    def stop(self):
-        self.running = False
-        if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=2)
-        self.logger.info("RetryManager stopped.")
-
-    def add_to_queue(self, file_path: str):
-        with self.lock:
-            if file_path not in self.retry_queue:
-                self.retry_queue[file_path] = time.time()
-                self.logger.info(f"Added to retry queue: {file_path}")
-
-    def remove_from_queue(self, file_path: str):
-        with self.lock:
-            if file_path in self.retry_queue:
-                del self.retry_queue[file_path]
-                self.logger.info(f"Removed from retry queue: {file_path}")
-
-    def is_in_queue(self, file_path: str) -> bool:
-        with self.lock:
-            return file_path in self.retry_queue
-
-    def _worker(self):
-        while self.running:
-            time.sleep(self.check_interval)
-            
-            with self.lock:
-                files_to_process = list(self.retry_queue.keys())
-            
-            for file_path in files_to_process:
-                if not self.running:
-                    break
-
-                with self.lock:
-                    if file_path not in self.retry_queue:
-                        continue
-                    timestamp = self.retry_queue[file_path]
-                
-                # Check expiry
-                if time.time() - timestamp > self.expiry_time:
-                    self.logger.warning(f"File expired in retry queue, removing: {file_path}")
-                    self.remove_from_queue(file_path)
-                    continue
-
-                # Check stability
-                if not is_file_stable(file_path, wait_time=1.0):
-                    self.logger.debug(f"File {file_path} is unstable (changing size). Skipping retry.")
-                    continue
-
-                # Try copy
-                self.logger.debug(f"Retrying copy for: {file_path}")
-                return_code, output = self.rclone_handler.copy_file(source_path=file_path)
-                
-                if return_code == 0:
-                    self.logger.info(f"Retry success for: {file_path}")
-                    self.remove_from_queue(file_path)
-                else:
-                    self.logger.debug(f"Retry failed for: {file_path}. Return code: {return_code}")
-
-
 class MyEventHandler(FileSystemEventHandler):
     """
     A class to handle file system events.
@@ -357,7 +255,6 @@ class MonitorHandler:
         self.log_config = log_config
         self.monitor_enabled = monitor_config.get("enabled")
         self.observer = None
-        self.retry_manager = None
         self.action_dispatcher = None
         # # Create LoggingHandler instance
         self.logger = get_unique_logger(
@@ -401,14 +298,9 @@ class MonitorHandler:
             self.destination_path, self.monitor_path, self.logger, self.rclone_flags
         )
         
-        # Initialize and start RetryManager
-        self.retry_manager = RetryManager(rclone_handler, self.logger)
-        self.retry_manager.start()
-
         # Initialize ActionDispatcher and RcloneActionHandler
         self.rclone_action_handler = RcloneActionHandler(
             rclone_handler=rclone_handler, 
-            retry_manager=self.retry_manager, 
             logger=self.logger,
             debounce_delay=self.monitor_config.get("debounce_delay", 2.0)
         )
@@ -472,7 +364,3 @@ class MonitorHandler:
         if hasattr(self, 'rclone_action_handler') and self.rclone_action_handler is not None:
             self.rclone_action_handler.stop()
             self.rclone_action_handler = None
-
-        if self.retry_manager is not None:
-            self.retry_manager.stop()
-            self.retry_manager = None
