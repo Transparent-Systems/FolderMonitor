@@ -62,7 +62,7 @@ def is_excluded(path_str: str, exclude_patterns: list[str]) -> bool:
     return False
 
 
-class MyEventHandler(FileSystemEventHandler):
+class MonitorEventHandler(FileSystemEventHandler):
     """
     A class to handle file system events.
     It is used by the watchdog library to monitor a folder for changes.
@@ -307,7 +307,7 @@ class MonitorHandler:
         self.action_dispatcher = ActionDispatcher(handlers=[self.rclone_action_handler], logger=self.logger)
         self.action_dispatcher.start()
 
-        event_handler = MyEventHandler(
+        event_handler = MonitorEventHandler(
             action_dispatcher=self.action_dispatcher, 
             monitor_config=self.monitor_config, 
             logger=self.logger
