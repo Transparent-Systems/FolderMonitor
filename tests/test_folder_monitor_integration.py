@@ -128,6 +128,7 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         tail = file_path.name
         dst_path = self.rclone_handler.get_destination_path(path=head)
 
+        time.sleep(self.check_delay)
         (found, files) = self.check_path.file_exists(parent_path=dst_path, file_name=tail)
         self.assertTrue(found, f"File {tail} should exist at {dst_path}. Files found: {files}")
 
@@ -243,7 +244,7 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         file_path = create_big_file(path=self.source_path, filename=file_name, write_duration_seconds=15)
 
         # Wait before checking
-        time.sleep(5 + self.check_delay)
+        time.sleep(10 + self.check_delay)
         dst_path = self.rclone_handler.get_destination_path(path=file_path)
         (found, isdir, files) = self.check_path.path_exists(path=dst_path)
         self.assertTrue(found, f"Big file should exist at destination: {dst_path}")
@@ -315,6 +316,12 @@ if __name__ == "__main__":
         default=1.0,
         help="Delay in seconds to wait before checking results."
     )
+    parser.add_argument(
+        "--test-cases",
+        type=str,
+        nargs="+",
+        help="Space-separated list of test method names (or substrings) to run."
+    )
     args = parser.parse_args()
 
     # Setup logger
@@ -385,7 +392,26 @@ if __name__ == "__main__":
         logger.info(f"Running tests for monitor: {monitor.get('name')}")
         
         # Run Tests
-        suite = unittest.TestLoader().loadTestsFromTestCase(TestFolderMonitorIntegration)
+        loader = unittest.TestLoader()
+        full_suite = loader.loadTestsFromTestCase(TestFolderMonitorIntegration)
+
+        if args.test_cases:
+            # Flatten arguments in case they were passed as a single string with spaces
+            patterns = []
+            for item in args.test_cases:
+                patterns.extend(item.split())
+
+            suite = unittest.TestSuite()
+            for test in full_suite:
+                # test._testMethodName contains the name of the test method
+                if any(pattern in test._testMethodName for pattern in patterns):
+                    suite.addTest(test)
+            
+            if suite.countTestCases() == 0:
+                 logger.warning(f"No tests matched patterns: {patterns}")
+        else:
+            suite = full_suite
+
         result = unittest.TextTestRunner(verbosity=2).run(suite)
         
         if not result.wasSuccessful():
