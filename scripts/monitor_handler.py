@@ -36,6 +36,7 @@ from watchdog.events import (
     DirMovedEvent,
 )
 from rclone_handler import RcloneHandler
+from action_handler import ActionContext, ActionDispatcher, RcloneActionHandler
 from utils.rclone_util import CheckPath
 from utils.logging_util import get_unique_logger
 
@@ -171,20 +172,16 @@ class MyEventHandler(FileSystemEventHandler):
 
     # These are instance attributes, defined here with type hints for clarity
     # and static analysis. They will be initialized in __init__.
-    rclone_handler: RcloneHandler
-    check_path: CheckPath
+    action_dispatcher: ActionDispatcher
     logger: logging.Logger
     exclude_patterns: list[str]
-    retry_manager: RetryManager
 
 
     def __init__(
-        self, rclone_handler: RcloneHandler, retry_manager: RetryManager, monitor_config: dict, logger: logging.Logger | None = None
+        self, action_dispatcher: ActionDispatcher, monitor_config: dict, logger: logging.Logger | None = None
     ):
         super().__init__()
-        self.rclone_handler = rclone_handler
-        self.retry_manager = retry_manager
-        self.check_path = CheckPath(rclone_handler=rclone_handler)
+        self.action_dispatcher = action_dispatcher
         self.exclude_patterns = monitor_config.get("exclude_patterns", [])
         self.logger = logger or logging.getLogger(__name__)
         self.logger.debug("MyEventHandler initialized")
@@ -222,6 +219,14 @@ class MyEventHandler(FileSystemEventHandler):
             )
             return
 
+        # Queue the action
+        context = ActionContext(
+            action_type="created",
+            src_path=event.src_path,
+            is_directory=event.is_directory
+        )
+        self.action_dispatcher.queue_action(context)
+
         if event.is_directory:
             self.logger.info(f"on_created: folder '{event.src_path}'; create postponed to on_modified event")
         else:
@@ -233,77 +238,29 @@ class MyEventHandler(FileSystemEventHandler):
     def on_deleted(self, event):
         """
         Handles file and directory deletion events.
-
-        When a file or directory is deleted from the monitored source path,
-        this method attempts to delete the corresponding item at the destination.
-        It includes specific handling for local/FTP backends to check for existence
-        before deletion, and falls back to a general delete for other backend types.
-
-        Args:
-            event (FileSystemEvent): The deletion event object.
         """
         # Log the deletion event with the source path
         self.logger.info(f"on_deleted: src_path='{event.src_path}'")
-
-        # If in retry queue, remove it so we don't keep retrying a deleted file
-        if self.retry_manager.is_in_queue(event.src_path):
-            self.retry_manager.remove_from_queue(event.src_path)
 
         if is_excluded(event.src_path, self.exclude_patterns):
             self.logger.debug(
                 f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
             )
             return
-
-        # watchdog v6.0.0 never triggers a DirDeletedEvent. This test is just for future use.
-        # If the deleted event is a directory, purge the corresponding folder at the destination.
-        # This handles cases where an entire directory is removed.
-        if event.is_directory: # This code is never reached as watchdog does not trigger DirDeletedEvent
-            # If the event is a directory deletion, we delete the entire folder
-            destination_path = self.rclone_handler.get_destination_path(path=event.src_path)
-            self.rclone_handler.delete_folder(destination_path=destination_path)
-            return
-
-        # After all files have been delete on Object Storage, all empty folders will be gone.
-        # So it is possible that the delete may fail.
-        # Get the corresponding destination path for the deleted item.
-        destination_path = self.rclone_handler.get_destination_path(event.src_path)
-        (found, isdir, result_output) = self.check_path.path_exists(path=destination_path)
-
-        # If the base name (file or folder) is not found at the destination,
-        # then:
-        #   - it was already deleted
-        #   - it never existed
-        #   - All files in the virtual folder on object storage have been deleted
-        # 
-        # Nothing further to do
-        if not found:
-            return
-
-        if isdir:
-            (return_code, return_output) = self.rclone_handler.delete_folder(
-                destination_path=destination_path
-            )
-        else:
-            (return_code, return_output) = self.rclone_handler.delete_file(
-                # If it's a file, delete the specific file.
-                destination_path=destination_path
-            )
+            
+        context = ActionContext(
+            action_type="deleted",
+            src_path=event.src_path,
+            is_directory=event.is_directory
+        )
+        self.action_dispatcher.queue_action(context)
 
         return
 
     def on_modified(self, event):
         """
         Handles file modification events.
-        We have filtered out DirModifiedEvent noise (like access_time changes) by checking if the path is a directory.
-        So we shoud not receive DirModifiedEvent events here.
-        However, if a file is removed from a folder, then watchdog might trigger a FileModifiedEvent on the folder of that file.
-        So, we check if the path exist, if not, then skip further processing
         """
-
-        # If file is already in retry queue, ignore this event silently
-        if self.retry_manager.is_in_queue(event.src_path):
-            return
 
         self.logger.info(
             # Log the modification event details.
@@ -316,26 +273,17 @@ class MyEventHandler(FileSystemEventHandler):
             )
             return
 
-        # For directories, on_modified is typically not used for copying as DirCreatedEvent handles initial creation
-        # and subsequent file events handle content.
         if not event.is_directory:
-            # If file is already in queue, ignore this event silently
-            if self.retry_manager.is_in_queue(event.src_path):
-                return
-            
-            # Do not check file stability as it will block the main thread.
-            # Try to copy
-            # If the copy fails we add it to a retry queue
-            return_code, output = self.rclone_handler.copy_file(source_path=event.src_path)
-            if return_code != 0:
-                self.logger.warning(f"Copy failed for {event.src_path}, adding to retry queue. Code: {return_code}")
-                self.retry_manager.add_to_queue(event.src_path)
+            context = ActionContext(
+                action_type="modified",
+                src_path=event.src_path,
+                is_directory=event.is_directory
+            )
+            self.action_dispatcher.queue_action(context)
 
     def on_closed(self, event) -> None:
         """
         Handles FileClosedEvent
-        Event FileClosedEvent is not triggered on Windows 11
-        That's why we handle file creation in the on_modified event.
         """
         
         if is_excluded(event.src_path, self.exclude_patterns):
@@ -345,8 +293,6 @@ class MyEventHandler(FileSystemEventHandler):
             return
 
         # Check if the file still exists. It might have been deleted right after closing.
-        # This is especially relevant for temporary files that are created, written, closed, and then immediately deleted.
-        # Also, if the event is for a directory, we don't want to copy it here.
         if not Path(event.src_path).exists() or event.is_directory:
             return
         
@@ -355,31 +301,18 @@ class MyEventHandler(FileSystemEventHandler):
             f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
         )
         
-        # If in retry queue, remove it (optimization for Linux where on_closed fires)
-        if self.retry_manager.is_in_queue(event.src_path):
-            self.retry_manager.remove_from_queue(event.src_path)
-
-        # When a file is closed (finished writing), copy it to the destination.
-        # This is often more reliable for large files than on_modified.
-        self.rclone_handler.copy_file(source_path=event.src_path)
+        context = ActionContext(
+            action_type="closed",
+            src_path=event.src_path,
+            is_directory=event.is_directory
+        )
+        self.action_dispatcher.queue_action(context)
 
     def on_moved(self, event):
         """
         Handles file and directory move/rename events.
-
-        When a file or directory is moved or renamed in the monitored source path,
-        this method first deletes the item from its old location at the destination
-        and then copies it to its new location at the destination.
-
-        Args:
-            event (FileMovedEvent or DirMovedEvent): The move/rename event object.
-                `event.src_path` is the old path, and `event.dest_path` is the new path.
         """
         
-        # If in retry queue, remove it so we don't keep retrying a moved file
-        if self.retry_manager.is_in_queue(event.src_path):
-            self.retry_manager.remove_from_queue(event.src_path)
-
         if is_excluded(event.src_path, self.exclude_patterns):
             self.logger.debug(
                 f"Path excluded: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
@@ -391,25 +324,13 @@ class MyEventHandler(FileSystemEventHandler):
             f"on_moved - renamed from {event.src_path} to {event.dest_path}"
         )
 
-        if event.is_directory:
-            # If a directory was moved:
-            # 1. Get the destination path for the old directory.
-            destination_path = self.rclone_handler.get_destination_path(
-                path=event.src_path
-            )
-            # 2. Purge (delete) the old directory from the remote.
-            self.rclone_handler.delete_folder(destination_path=destination_path)
-            # 3. Copy the new directory (at its new source location) to the remote.
-            self.rclone_handler.copy_folder(source_path=event.dest_path)
-        else:
-            # If a file was moved:
-            # Remove old file from remote
-            destination_path = self.rclone_handler.get_destination_path(
-                path=event.src_path
-            )
-            self.rclone_handler.delete_file(destination_path=destination_path)
-            # Copy new file to remote
-            self.rclone_handler.copy_file(source_path=event.dest_path)
+        context = ActionContext(
+            action_type="moved",
+            src_path=event.src_path,
+            is_directory=event.is_directory,
+            dest_path=event.dest_path
+        )
+        self.action_dispatcher.queue_action(context)
 
 
 class MonitorHandler:
@@ -437,6 +358,7 @@ class MonitorHandler:
         self.monitor_enabled = monitor_config.get("enabled")
         self.observer = None
         self.retry_manager = None
+        self.action_dispatcher = None
         # # Create LoggingHandler instance
         self.logger = get_unique_logger(
             log_config.get("log_level", "INFO").upper()
@@ -483,9 +405,18 @@ class MonitorHandler:
         self.retry_manager = RetryManager(rclone_handler, self.logger)
         self.retry_manager.start()
 
-        event_handler = MyEventHandler(
+        # Initialize ActionDispatcher and RcloneActionHandler
+        self.rclone_action_handler = RcloneActionHandler(
             rclone_handler=rclone_handler, 
             retry_manager=self.retry_manager, 
+            logger=self.logger,
+            debounce_delay=self.monitor_config.get("debounce_delay", 2.0)
+        )
+        self.action_dispatcher = ActionDispatcher(handlers=[self.rclone_action_handler], logger=self.logger)
+        self.action_dispatcher.start()
+
+        event_handler = MyEventHandler(
+            action_dispatcher=self.action_dispatcher, 
             monitor_config=self.monitor_config, 
             logger=self.logger
         )
@@ -534,6 +465,14 @@ class MonitorHandler:
             self.logger.info("Monitor stopped.")
             self.observer = None
         
+        if self.action_dispatcher is not None:
+            self.action_dispatcher.stop()
+            self.action_dispatcher = None
+
+        if hasattr(self, 'rclone_action_handler') and self.rclone_action_handler is not None:
+            self.rclone_action_handler.stop()
+            self.rclone_action_handler = None
+
         if self.retry_manager is not None:
             self.retry_manager.stop()
             self.retry_manager = None
