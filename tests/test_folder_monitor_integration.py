@@ -76,8 +76,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         pass
 
     def test_01_create_new_file(self):
-        """Test 1: Create new file"""
-        self.logger.info("==> Test 1: Create new file")
+        """Create new file"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "test1.txt"
         
         # Ensure clean state
@@ -92,8 +92,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         self.assertTrue(found, f"File {tail} should exist at {dst_path}. Files found: {files}")
 
     def test_02_delete_file(self):
-        """Test 2: Delete a file"""
-        self.logger.info("==> Test 2: Delete a file")
+        """Delete a file"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "test1.txt"
         
         # Ensure file exists first (setup)
@@ -112,8 +112,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         self.assertFalse(found, f"File {tail} should NOT exist at {dst_path}. Files found: {files}")
 
     def test_03_create_subfolder_with_files(self):
-        """Test 3: Create subfolder with files. Check last file only"""
-        self.logger.info("==> Test 3: Create subfolder with files")
+        """Create subfolder with files. Check last file only"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = [
             "Subfolder3/test1.txt",
             "Subfolder3/test2.txt",
@@ -133,8 +133,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         self.assertTrue(found, f"File {tail} should exist at {dst_path}. Files found: {files}")
 
     def test_04_delete_subfolder(self):
-        """Test 4: Delete subfolder"""
-        self.logger.info("==> Test 4: Delete subfolder")
+        """Delete subfolder"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["Subfolder4/test1"]
         
         # Setup
@@ -162,8 +162,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
             self.assertFalse(found, f"Folder {tail} should not exist at {dst_path}.")
 
     def test_05_rename_file(self):
-        """Test 5: Rename file"""
-        self.logger.info("==> Test 5: Rename file")
+        """Rename file"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["old_file.txt"]
         
         # Clean
@@ -195,8 +195,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         self.assertTrue(found, f"New file {tail} should exist at {dst_path}.")
 
     def test_06_rename_subfolder(self):
-        """Test 6: Rename subfolder"""
-        self.logger.info("==> Test 6: Rename subfolder")
+        """Rename subfolder"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["Subfolder-old/test1.txt", "Subfolder-old/test2.txt"]
         
         # Clean
@@ -229,8 +229,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         self.assertTrue(found, "New subfolder should exist at destination.")
 
     def test_07_write_big_file(self):
-        """Test 7: Write big file"""
-        self.logger.info("==> Test 7: Write big file")
+        """Write big file"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "big-test-file.txt"
 
         # Delete big file first
@@ -250,8 +250,8 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         self.assertTrue(found, f"Big file should exist at destination: {dst_path}")
 
     def test_08_write_many_files(self):
-        """Test 8: Write many files"""
-        self.logger.info("==> Test 8: Write many files")
+        """Write many files"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         
         max_file_count = 4
         file_paths = []

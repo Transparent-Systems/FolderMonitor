@@ -69,7 +69,7 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
 
     def test_01_utils(self):
         """Testing utils (path_exists checks)"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 0: Testing utils")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "Subfolder1/test1.txt"
         
         # Create source file
@@ -105,19 +105,19 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
 
     def test_02_get_version(self):
         """Get Version"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 1: Get Version")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         (result_code, result_output) = self.rclone_handler.get_rclone_version()
         self.assertIn("rclone", result_output.lower(), "Output should contain 'rclone'")
 
     def test_03_list_remotes(self):
         """List Remotes"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 2: List Remotes")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         (result_code, result_output) = self.rclone_handler.list_remotes()
         self.assertEqual(result_code, 0, f"List remotes failed. Output: {result_output}")
 
     def test_04_copy_file_to_remote(self):
         """Copy file to remote"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 3: Copy file to remote")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "test1.txt"
         file_path = create_test_data(path=self.source_path, files=[file_name])
         
@@ -132,7 +132,7 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
 
     def test_05_delete_file_at_remote(self):
         """Delete a file at remote"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 4: Delete a file at remote")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "test2.txt"
         file_path = create_test_data(path=self.source_path, files=[file_name])
 
@@ -154,7 +154,7 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
 
     def test_06_create_folder_with_files(self):
         """Create folder with files"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 5: Create folder with files")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["Subfolder1/test1.txt", "Subfolder1/test2.txt", "Subfolder1/test3.txt"]
         
         # Create files
@@ -175,7 +175,7 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
 
     def test_07_remove_folder_from_remote(self):
         """Remove folder from remote"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 6: Remove folder from remote")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["Subfolder2/test1.txt", "Subfolder2/test2.txt", "Subfolder2/test3.txt"]
         
         # Create source data first
@@ -207,7 +207,7 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
 
     def test_08_file_with_space(self):
         """Testing file with space"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 7: Testing file with space")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "Subfolder1/file with space.txt"
         file_path = create_test_data(path=self.source_path, files=[file_name])
         
@@ -221,7 +221,7 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
 
     def test_09_folder_with_space(self):
         """Testing folder with space"""
-        self.logger.debug(f"==> {self.monitor_name} -> Test 8: Testing folder with space")
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "Subfolder with Space/test1.txt"
         file_path = create_test_data(path=self.source_path, files=[file_name])
         
