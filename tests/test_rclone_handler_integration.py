@@ -1,17 +1,18 @@
 """
-Version: 1.0
+Version: 1.1
 
 Test integration script for rclone handler.
-The scipt iterates over monitors configured in a yaml file.
+The script iterates over monitors configured in a yaml file.
 The same test suite is used for each monitor.
-Test metrics and results are printed after processing all monitors
-This sucess and failure rate is show and the duration of each test for an individual monitor and summarized over all monitors.
+Refactored to use unittest.TestCase.
+Ensure no folder monitor is currently running on any configured test monitor to avoid conflicts.
 """
 
 import argparse
 import sys
 import logging
 import yaml
+import unittest
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -20,475 +21,335 @@ scriptspath = Path(__file__).parent / Path("../scripts")
 sys.path.insert(0, scriptspath.resolve().as_posix())
 
 from rclone_handler import RcloneHandler
-from utils.testing_util import create_test_data, ProcessTestResult
+from utils.testing_util import create_test_data
 from utils.rclone_util import CheckPath
 from utils.logging_util import get_unique_logger
+from config_models import ConfigModels
 
+class TestRcloneHandlerIntegration(unittest.TestCase):
+    monitor_config = {}
+    logger = None
+    
+    @classmethod
+    def setUpClass(cls):
+        if not cls.monitor_config:
+            raise ValueError("Monitor config not set for TestRcloneHandlerIntegration")
+        
+        cls.monitor_name = cls.monitor_config.get("name")
+        cls.logger.info(f"Setting up tests for monitor: {cls.monitor_name}")
 
-def run_integration_check(
-    testsuite_name: str,
-    source_path: str,
-    destination_path: str,
-    rclone_flags: str,
-    logger: logging.Logger,
-) -> ProcessTestResult:
-    logger.debug("--- Rclone Integration Check ---")
-    process_test_result = ProcessTestResult(testsuite_name=testsuite_name)
-    rclone_handler = RcloneHandler(
-        base_destination_path=destination_path,
-        base_source_path=source_path,
-        logger=logger,
-        rclone_flags=rclone_flags,
-    )
-    check_path = CheckPath(
-        rclone_handler=rclone_handler,
-        check_delay=0,
-    )
+        subfolder = "test_rclone_handler_integration"
+        
+        # Setup Source Path
+        raw_source = cls.monitor_config.get("monitor_path")
+        raw_source_stripped = raw_source.rstrip('/')
+        cls.source_path = f"{raw_source_stripped}/{subfolder}"
+        
+        # Setup Destination Path
+        raw_dest = cls.monitor_config.get("destination_path")
+        raw_dest_stripped = raw_dest.rstrip('/')
+        cls.destination_path = f"{raw_dest_stripped}/{subfolder}"
+        
+        rclone_flags = cls.monitor_config.get("rclone_flags", "")
 
-    try:
-        #############################################
-        testname = "Test 0: Testing utils"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
+        cls.rclone_handler = RcloneHandler(
+            base_destination_path=cls.destination_path,
+            base_source_path=cls.source_path,
+            logger=cls.logger,
+            rclone_flags=rclone_flags,
+        )
+        
+        cls.check_path = CheckPath(
+            rclone_handler=cls.rclone_handler,
+            check_delay=0,
+        )
+        
+        # Ensure source directory exists
+        Path(cls.source_path).mkdir(parents=True, exist_ok=True)
+
+    def test_01_utils(self):
+        """Testing utils (path_exists checks)"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 0: Testing utils")
         file_name = "Subfolder1/test1.txt"
-        # Create source file first, otherwise rclone_handler.copy_file may fail
-        file_path = create_test_data(path=source_path, files=[file_name])
-        (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
-        if result_code == 0:
-            # dst_path = rclone_handler.get_destination_path(path=head)
-            dst_path = rclone_handler.get_destination_path(path=file_path)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
+        
+        # Create source file
+        file_path = create_test_data(path=self.source_path, files=[file_name])
+        
+        # Copy to remote manually to setup state
+        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
+        self.assertEqual(result_code, 0, f"Setup failed: copy file {file_name}. Output: {result_output}")
 
-            # Check this is a file
-            process_test_result.process(
-                testname, (found and not isdir), files, f"verify this is a file: {dst_path}"
-            )
+        # Check existing file
+        dst_path = self.rclone_handler.get_destination_path(path=file_path)
+        (found, isdir, files) = self.check_path.path_exists(path=dst_path)
+        self.assertTrue(found, f"File should exist: {dst_path}")
+        self.assertFalse(isdir, f"Path should be a file, not dir: {dst_path}")
 
-            # Now check a file that does not exist
-            dst_path = Path(source_path) / Path("file-does-not-exists.txt")
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
-            process_test_result.process(
-                testname, (not found), files, f"verify file does not exist: {dst_path}"
-            )
+        # Check non-existent file
+        dst_path_missing = Path(self.source_path) / "file-does-not-exists.txt"
+        (found, isdir, files) = self.check_path.path_exists(path=dst_path_missing)
+        self.assertFalse(found, f"File should not exist: {dst_path_missing}")
 
-            # Now check Subfolder1 has been created at destination
-            subfolder_path= Path(source_path) / Path("Subfolder1")
-            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
-            process_test_result.process(
-                testname,
-                (found and isdir),
-                files,
-                f"verify this is a directory: {dst_path}",
-            )
+        # Check existing directory
+        subfolder_path = Path(self.source_path) / "Subfolder1"
+        dst_path_folder = self.rclone_handler.get_destination_path(path=subfolder_path)
+        (found, isdir, files) = self.check_path.path_exists(path=dst_path_folder)
+        self.assertTrue(found, f"Folder should exist: {dst_path_folder}")
+        self.assertTrue(isdir, f"Path should be a dir: {dst_path_folder}")
 
-            # Now check for a non-existent folder
-            subfolder_path= Path(source_path) / Path("folder_does_not_exist")
-            dst_path = rclone_handler.get_destination_path(path=subfolder_path)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
-            process_test_result.process(
-                testname, (not found), files, f"verify directory does not exist: {subfolder_path.name}"
-            )
-        else:
-            process_test_result.process(
-                testname, (False), result_output, f"copy file {file_name}"
-            )
+        # Check non-existent directory
+        subfolder_missing = Path(self.source_path) / "folder_does_not_exist"
+        dst_path_missing_folder = self.rclone_handler.get_destination_path(path=subfolder_missing)
+        (found, isdir, files) = self.check_path.path_exists(path=dst_path_missing_folder)
+        self.assertFalse(found, f"Folder should not exist: {dst_path_missing_folder}")
 
-        #############################################
-        testname = "Test 1: Get Version"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
-        (result_code, result_output) = rclone_handler.get_rclone_version()
-        result_output = result_output.replace("\n", " ; ")
-        process_test_result.process(
-            testname, ("rclone" in result_output.lower()), result_output
-        )
+    def test_02_get_version(self):
+        """Get Version"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 1: Get Version")
+        (result_code, result_output) = self.rclone_handler.get_rclone_version()
+        self.assertIn("rclone", result_output.lower(), "Output should contain 'rclone'")
 
-        #############################################
-        testname = "Test 2: List Remotes"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
-        (result_code, result_output) = rclone_handler.list_remotes()
-        result_output = result_output.replace("\n", " ; ")
-        process_test_result.process(testname, (result_code == 0), result_output)
+    def test_03_list_remotes(self):
+        """List Remotes"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 2: List Remotes")
+        (result_code, result_output) = self.rclone_handler.list_remotes()
+        self.assertEqual(result_code, 0, f"List remotes failed. Output: {result_output}")
 
-        #############################################
-        testname = "Test 3: Copy file to remote"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
+    def test_04_copy_file_to_remote(self):
+        """Copy file to remote"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 3: Copy file to remote")
         file_name = "test1.txt"
-        file_path = create_test_data(path=source_path, files=[file_name])
-        # Create source file first, otherwise rclone_handler.copy_file may fail
-        (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
-        if result_code == 0:
-            head = file_path.parent
-            tail = file_path.name
-            dst_path = rclone_handler.get_destination_path(path=head)
-            (found, files) = check_path.file_exists(
-                parent_path=dst_path, file_name=tail
-            )
+        file_path = create_test_data(path=self.source_path, files=[file_name])
+        
+        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
+        self.assertEqual(result_code, 0, f"Copy file failed. Output: {result_output}")
 
-            process_test_result.process(
-                testname, (found), files, f"verify file {tail} on remote"
-            )
-        else:
-            process_test_result.process(
-                testname, (False), result_output, f"copy file {file_name}"
-            )
+        head = file_path.parent
+        tail = file_path.name
+        dst_path = self.rclone_handler.get_destination_path(path=head)
+        (found, files) = self.check_path.file_exists(parent_path=dst_path, file_name=tail)
+        self.assertTrue(found, f"File {tail} should be found on remote at {dst_path}")
 
-        #############################################
-        testname = "Test 4: Delete a file at remote"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
+    def test_05_delete_file_at_remote(self):
+        """Delete a file at remote"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 4: Delete a file at remote")
         file_name = "test2.txt"
+        file_path = create_test_data(path=self.source_path, files=[file_name])
 
-        # Create source file first, otherwise rclone_handler.copy_file may fail;
-        file_path = create_test_data(path=source_path, files=[file_name])
+        # Copy first
+        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
+        self.assertEqual(result_code, 0, "Setup failed: Copy file")
 
-        # Now copy file to destination
-        (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
-        if result_code == 0:
-            # Now delete the destination file
-            dst_path = rclone_handler.get_destination_path(path=file_path)
-            (result_code, result_output) = rclone_handler.delete_file(destination_path=dst_path)
+        # Delete
+        dst_path = self.rclone_handler.get_destination_path(path=file_path)
+        (result_code, result_output) = self.rclone_handler.delete_file(destination_path=dst_path)
+        self.assertEqual(result_code, 0, f"Delete file failed. Output: {result_output}")
 
-            # Check if the destination file has indeed been deleted
-            head = file_path.parent
-            tail = file_path.name
-            dst_path = rclone_handler.get_destination_path(path=head)
-            (found, files) = check_path.file_exists(
-                parent_path=dst_path, file_name=tail
-            )
-
-            # File should not be found
-            process_test_result.process(
-                testname, (not found), files, f"check file {file_name} deleted"
-            )
-        else:
-            process_test_result.process(
-                testname, (False), result_output, f"copy file {file_name} to remote"
-            )
-
-        #############################################
-        testname = "Test 5: Create folder with files"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
-        files = []
-        files.append("Subfolder1/test1.txt")
-        files.append("Subfolder1/test2.txt")
-        files.append("Subfolder1/test3.txt")
-
-        # Create files on source_path first
-        file_path = create_test_data(path=source_path, files=files)
-
-        # Now copy folder with contents to destination
-        head = file_path.parent
-        (result_code, result_output) = rclone_handler.copy_folder(source_path=head.as_posix())
-        process_test_result.process(
-            testname,
-            (result_code == 0),
-            result_output,
-            f"copy folder {head.name}",
-        )
-
-        # Check if subfolder has been copied to destination
-        # There should be at least 3 files in the subfolder now
-        destination_path = rclone_handler.get_destination_path(path=head.as_posix())
-        file_name = file_path.name
-        (found, files) = check_path.file_exists(
-            parent_path=destination_path, file_name=file_name
-        )
-
-        # We should have found file_name and there should be at least len(files) files
-        result = found and len(files) >= len(files)
-        process_test_result.process(
-            testname, (result), files, f"found file {file_name} on remote"
-        )
-
-        #############################################
-        testname = "Test 6: Remove folder from remote"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
-        files = []
-        files.append("Subfolder2/test1.txt")
-        files.append("Subfolder2/test2.txt")
-        files.append("Subfolder2/test3.txt")
-
-        # Create folder and files on source first
-        file_path = create_test_data(path=source_path, files=files)
-
-        # Now copy folder to destination
-        head = file_path.parent
-        (result_code, result_output) = rclone_handler.copy_folder(source_path=head.as_posix())
-        process_test_result.process(
-            testname,
-            (result_code == 0),
-            result_output,
-            f"copy folder {head.name} to remote",
-        )
-
-        # Check if subfolder has been copied to destination
-        # There should be at least 3 files in the subfolder now
-        destination_path = rclone_handler.get_destination_path(head)
-        file_name = file_path.name
-        (found, files) = check_path.file_exists(
-            parent_path=destination_path, file_name=file_name
-        )
-
-        # We should have found file_name and there should be at least test_file.len files
-        result = found and len(files) >= len(files)
-        process_test_result.process(
-            testname, (result), files, f"check folder {file_name} exists"
-        )
-
-        # Now delete the destination folder
+        # Check absence
         head = file_path.parent
         tail = file_path.name
-        destination_path = rclone_handler.get_destination_path(path=head)
-        # Method purge_folder will delete all versions. Do not user purge_folder. It's better to have empty folders than to remove versions!
-        (result_code, result_output) = rclone_handler.delete_folder(destination_path=destination_path)
-        process_test_result.process(
-            testname,
-            (result_code == 0),
-            result_output,
-            f"delete folder {head.name}",
-        )
+        dst_parent = self.rclone_handler.get_destination_path(path=head)
+        (found, files) = self.check_path.file_exists(parent_path=dst_parent, file_name=tail)
+        self.assertFalse(found, f"File {tail} should be deleted from remote")
 
-        # Check if folder has been deleted at destination
-        # Get parent of subfolder, then check if folder exists
+    def test_06_create_folder_with_files(self):
+        """Create folder with files"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 5: Create folder with files")
+        files = ["Subfolder1/test1.txt", "Subfolder1/test2.txt", "Subfolder1/test3.txt"]
+        
+        # Create files
+        file_path = create_test_data(path=self.source_path, files=files)
+        head = file_path.parent # Subfolder1
+
+        # Copy folder
+        (result_code, result_output) = self.rclone_handler.copy_folder(source_path=head.as_posix())
+        self.assertEqual(result_code, 0, f"Copy folder failed. Output: {result_output}")
+
+        # Check one file
+        dst_path = self.rclone_handler.get_destination_path(path=head.as_posix())
+        file_name = file_path.name
+        (found, files_found) = self.check_path.file_exists(parent_path=dst_path, file_name=file_name)
+        
+        self.assertTrue(found, f"File {file_name} should exist in copied folder")
+        self.assertGreaterEqual(len(files_found), len(files), "Should find at least as many files as created")
+
+    def test_07_remove_folder_from_remote(self):
+        """Remove folder from remote"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 6: Remove folder from remote")
+        files = ["Subfolder2/test1.txt", "Subfolder2/test2.txt", "Subfolder2/test3.txt"]
+        
+        # Create source data first
+        file_path = create_test_data(path=self.source_path, files=files)
         head = file_path.parent
-        tail = file_path.name
-        destination_path = rclone_handler.get_destination_path(path=head)
-        (found, files) = check_path.folder_exists(
-            parent_path=destination_path, folder_name=tail
-        )
 
-        #############################################
-        testname = "Test 7: Testing file with space"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
+        # Copy folder
+        (result_code, result_output) = self.rclone_handler.copy_folder(source_path=head.as_posix())
+        self.assertEqual(result_code, 0, "Rclone copy_folder succeeded")
+
+        # Verify folder exists
+        head_parent = head.parent
+        folder_name = head.name
+        destination_path = self.rclone_handler.get_destination_path(head_parent)
+        (found, _) = self.check_path.folder_exists(parent_path=destination_path, folder_name=folder_name)
+        self.assertTrue(found, "Folder {folder_name} should exist at destination")
+
+        # Delete folder
+        destination_path = self.rclone_handler.get_destination_path(head)
+        (result_code, result_output) = self.rclone_handler.delete_folder(destination_path=destination_path)
+        self.assertEqual(result_code, 0, f"Rclone delete_folder failed for {destination_path}. Output: {result_output}")
+
+        # Verify folder is deleted
+        head_parent = head.parent
+        folder_name = head.name
+        dst_parent_path = self.rclone_handler.get_destination_path(path=head_parent)
+        (found, _) = self.check_path.folder_exists(parent_path=dst_parent_path, folder_name=folder_name)
+        self.assertFalse(found, f"Folder {folder_name} should be deleted from remote")
+
+    def test_08_file_with_space(self):
+        """Testing file with space"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 7: Testing file with space")
         file_name = "Subfolder1/file with space.txt"
-        # Create source file first, otherwise rclone_handler.copy_file may fail
-        file_path = create_test_data(path=source_path, files=[file_name])
-        (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
-        if result_code == 0:
-            dst_path = rclone_handler.get_destination_path(path=file_path)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
+        file_path = create_test_data(path=self.source_path, files=[file_name])
+        
+        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
+        self.assertEqual(result_code, 0, f"Copy file with space failed. Output: {result_output}")
 
-            # Check this is a file
-            process_test_result.process(
-                testname, (found and not isdir), files, f"verify this is a file: {dst_path}"
-            )
+        dst_path = self.rclone_handler.get_destination_path(path=file_path)
+        (found, isdir, _) = self.check_path.path_exists(path=dst_path)
+        self.assertTrue(found, "File with space should exist on remote")
+        self.assertFalse(isdir, "Should be a file")
 
-        else:
-            process_test_result.process(
-                testname, (False), result_output, f"copy file {file_name}"
-            )
-
-        #############################################
-        testname = "Test 8: Testing folder with space"
-        logger.debug(f"==> {testsuite_name} -> {testname}")
+    def test_09_folder_with_space(self):
+        """Testing folder with space"""
+        self.logger.debug(f"==> {self.monitor_name} -> Test 8: Testing folder with space")
         file_name = "Subfolder with Space/test1.txt"
-        # Create source file first, otherwise rclone_handler.copy_file may fail
-        file_path = create_test_data(path=source_path, files=[file_name])
-        (result_code, result_output) = rclone_handler.copy_file(source_path=file_path.as_posix())
-        if result_code == 0:
-            parent = file_path.parent
-            dst_path = rclone_handler.get_destination_path(path=parent)
-            (found, isdir, files) = check_path.path_exists(
-                path=dst_path
-            )
+        file_path = create_test_data(path=self.source_path, files=[file_name])
+        
+        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
+        self.assertEqual(result_code, 0, f"Copy file in folder with space failed. Output: {result_output}")
 
-            # Check this is a folder
-            process_test_result.process(
-                testname, (found and isdir), files, f"verify this is a folder: {dst_path}"
-            )
-        else:
-            process_test_result.process(
-                testname, (False), result_output, f"copy file {file_name}"
-            )
-
-        #############################################
-        logger.debug("\n--- All integration checks done ---")
-
-    except Exception as e:
-        logger.debug(f"\n--- Integration check FAILED: {e} ---")
-    finally:
-        logger.debug(f"\n--- Integration check cleanup")
-
-    return process_test_result
+        parent = file_path.parent
+        dst_path = self.rclone_handler.get_destination_path(path=parent)
+        (found, isdir, _) = self.check_path.path_exists(path=dst_path)
+        self.assertTrue(found, "Folder with space should exist on remote")
+        self.assertTrue(isdir, "Should be a directory")
 
 
 if __name__ == "__main__":
-    print("Starting integration test")
     parser = argparse.ArgumentParser(
-        description="This script runs integration tests for rclone_handler. The configuration is in a monitor yaml file."
+        description="Run integration tests for rclone_handler using unittest."
     )
-    parser.usage = "python test_rclone_handler_integration.py --config-path <path> --log-level <log level"
     parser.add_argument(
         "--config-path",
         type=str,
-        help="Path of monitor configuration file. Default is test/conf/config.yaml",
         default="conf/config.tests.yaml",
+        help="Path to monitor configuration file."
     )
     parser.add_argument(
         "--log-filename",
         type=str,
-        help="Logfile name. Default is test_rclone_handler_integration.log",
         default="test_rclone_handler_integration.log",
+        help="Log file name."
     )
     parser.add_argument(
-        "--log-level", type=str, help="Log level. Default is DEBUG", default="DEBUG"
+        "--log-level",
+        type=str,
+        default="DEBUG",
+        help="Log level."
     )
-    parser.add_argument("--test-delay", type=str, help="Delay in seconds.", default=0.5)
+    parser.add_argument(
+        "--test-cases",
+        type=str,
+        nargs="+",
+        help="Space-separated list of test method names (or substrings) to run."
+    )
     args = parser.parse_args()
-    print(f"Arguments: {args}")
 
     # Setup logger
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Set the overall minimum logging level
-    # Remove default handlers if any (crucial for clean setup)
+    root_logger.setLevel(logging.DEBUG)
+    
+    # Clean handlers
     for h in root_logger.handlers[:]:
         root_logger.removeHandler(h)
 
-    console_handler_real = logging.StreamHandler()
+    # Console Handler
+    console_handler = logging.StreamHandler()
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s")
+    console_handler.setFormatter(formatter)
+    root_logger.addHandler(console_handler)
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-    )
-    console_handler_real.setFormatter(formatter)
-    root_logger.addHandler(console_handler_real)
-    root_logger.debug("Root logger configured with console handler.")
-    print("Root logger configured")
-    # --- End Central Logging Setup ---
+    # Load Config
+    if not ConfigModels().validate(config_path=args.config_path, logger=root_logger):
+        root_logger.error(f"Configuration file '{args.config_path}' is invalid.")
+        sys.exit(1)
 
-    # Load configuration from the monitor config file
-    print(f"Loading config from {args.config_path}")
     with open(args.config_path, "r") as file:
         monitor_config = yaml.safe_load(file)
-    print("Config loaded")
 
-    # monitor_config = ConfigHandler(args.config_path)
-    log_config = monitor_config.get("logging")
-    if log_config is None:
-        print(f"Configuration for 'logging' not found in {args.config_path}.")
-        sys.exit(1)
-    print("Log config found")
-
-    # LOG_FILE = log_config.get('log_filename', 'test_rclone_handler_integration.log')
+    # Setup File Logging
+    log_config = monitor_config.get("logging", {})
+    LOG_FILE = log_config.get("log_file_name", args.log_filename)
     LOG_FOLDER = log_config.get("log_folder", "logs")
-    MAX_BYTES = log_config.get("max_bytes", 10 * 1024 * 1024)  # Default to 10 MB
-    BACKUP_COUNT = log_config.get("backup_count", 5)  # Default to
+    MAX_BYTES = log_config.get("max_bytes", 10 * 1024 * 1024)
+    BACKUP_COUNT = log_config.get("backup_count", 5)
 
-    rotating_log_file = Path(LOG_FOLDER) / Path(args.log_filename)
     log_folder_path = Path(LOG_FOLDER)
-    # Create log folder if it does not exist
     if not log_folder_path.exists():
-        try:
-            log_folder_path.mkdir(parents=True)
-            print(f"Log folder '{LOG_FOLDER}' created.")
-        except OSError as e:
-            print(f"Error creating log folder {LOG_FOLDER}: {e}")
-            sys.exit(1)
+        log_folder_path.mkdir(parents=True)
 
-    # These are the *actual* handlers that write to disk/console
-    rotating_file_handler_real = logging.handlers.RotatingFileHandler(
-        rotating_log_file.as_posix(), maxBytes=MAX_BYTES, backupCount=BACKUP_COUNT
+    file_handler = logging.handlers.RotatingFileHandler(
+        (log_folder_path / LOG_FILE).as_posix(),
+        maxBytes=MAX_BYTES,
+        backupCount=BACKUP_COUNT
     )
+    file_handler.setFormatter(formatter)
+    root_logger.addHandler(file_handler)
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(levelname)s - %(name)s - %(message)s"
-    )
-    rotating_file_handler_real.setFormatter(formatter)
-    root_logger.addHandler(rotating_file_handler_real)
     logger = get_unique_logger(args.log_level)
-    logger.debug("Before calling run_integration_check")
-    print("Logger created")
+    logger.info("Starting Rclone Handler Integration Tests")
 
-    monitors = monitor_config.get("monitors")
-    print(f"Monitors: {monitors}")
-    process_test_results: list[ProcessTestResult] = []
+    monitors = monitor_config.get("monitors", [])
+    overall_success = True
+
     for monitor in monitors:
-        monitor_name = monitor.get("name")
-        subfolder = "test_rclone_handler_integration"
-        source_path = monitor.get("monitor_path")
-        source_path = source_path.rstrip("/")
-        source_path = f"{source_path}/{subfolder}"
-        destination_path = monitor.get("destination_path")
-        destination_path = destination_path.rstrip("/")
-        destination_path = f"{destination_path}/{subfolder}"
-        print(f"Running test for monitor: {monitor_name}")
+        if not monitor.get("enabled"):
+            logger.info(f"Skipping disabled monitor: {monitor.get('name')}")
+            continue
 
-        process_test_result = run_integration_check(
-            testsuite_name=monitor_name,
-            source_path=source_path,
-            destination_path=destination_path,
-            rclone_flags=monitor.get("rclone_flags", ""),
-            logger=logger,
-        )
+        # Inject configuration into Test Class
+        TestRcloneHandlerIntegration.monitor_config = monitor
+        TestRcloneHandlerIntegration.logger = logger
+        
+        logger.info(f"Running tests for monitor: {monitor.get('name')}")
+        
+        # Run Tests
+        loader = unittest.TestLoader()
+        full_suite = loader.loadTestsFromTestCase(TestRcloneHandlerIntegration)
 
-        process_test_results.append(process_test_result)
-    print("Finished running tests")
+        if args.test_cases:
+            # Flatten arguments
+            patterns = []
+            for item in args.test_cases:
+                patterns.extend(item.split())
 
-    # Print test resuls of all monitors
-    total_success_count = 0
-    total_failure_count = 0
-    total_duration = 0
-    for process_test_result in process_test_results:
-        total_success_count += process_test_result.success_count
-        total_failure_count += process_test_result.failure_count
-        total_duration += process_test_result.duration
-        logger.info(
-            f"===> BEGIN: test results for [{process_test_result.testsuite_name}] <==="
-        )
-        logger.info("==================================================")
-        logger.info(
-            f"Number of tests : {process_test_result.success_count + process_test_result.failure_count}"
-        )
-        logger.info(f"Success count   : {process_test_result.success_count}")
-        logger.info(f"Failure count   : {process_test_result.failure_count}")
-        logger.info(f"Duration        : {process_test_result.duration: .2f} seconds")
-        logger.info("==================================================")
+            suite = unittest.TestSuite()
+            for test in full_suite:
+                if any(pattern in test._testMethodName for pattern in patterns):
+                    suite.addTest(test)
+            
+            if suite.countTestCases() == 0:
+                 logger.warning(f"No tests matched patterns: {patterns}")
+        else:
+            suite = full_suite
 
-        len_test_results = len(process_test_result.test_results)
-        max_width = len(str(len_test_results))
-        for test_result in process_test_result.test_results:
-            test_case_name = test_result.get("test_case_name")
-            test_step_name = test_result.get("test_step_name")
-            test_duration = test_result.get("test_duration")
-            test_counter = test_result.get("test_counter")
+        result = unittest.TextTestRunner(verbosity=2).run(suite)
+        
+        if not result.wasSuccessful():
+            overall_success = False
+            logger.error(f"Tests failed for monitor: {monitor.get('name')}")
 
-            if len(test_step_name) == 0:
-                test_full_name = test_case_name
-            else:
-                test_full_name = f"{test_case_name} - {test_step_name}"
-
-            if test_result.get("test_ok"):
-                logger.info(
-                    f"success    | {test_counter:>{max_width}} : {test_full_name}"
-                )
-                logger.info(f"           |      ==> duration: {test_duration: .2f} s")
-            else:
-                logger.info(
-                    f"failure    | {test_counter:>{max_width}} : {test_full_name}"
-                )
-                logger.info(f"           |      ==> duration: {test_duration: .2f} s")
-
-                for item in test_result.get("test_output"):
-                    logger.info(f"           |      {item}")
-
-        logger.info(
-            f"===> END: test results for [{process_test_result.testsuite_name}] <==="
-        )
-
-    # Print totals over all monitors
-    logger.info(f"===> Total counts for all monitors <===")
-    logger.info("==================================================")
-    logger.info(f"Total number of tests : {total_success_count + total_failure_count}")
-    logger.info(f"Total success count   : {total_success_count}")
-    logger.info(f"Total failure count   : {total_failure_count}")
-    logger.info(f"Total duration        : {total_duration: .2f} seconds")
-    logger.info(f"===> End total counts for all monitors <===")
-    print("Finished printing results")
+    if not overall_success:
+        sys.exit(1)
+    
+    logger.info("All tests passed successfully.")
