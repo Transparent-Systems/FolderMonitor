@@ -1,14 +1,12 @@
-<img src="https://aip.transparent.co.nz/wp-content/uploads/2025/06/AIP_grey_transparent_background_github-e1750625832556.png" alt="AIP logo">
+# Folder Monitor
 
-[Website](https://aip.transparent.co.nz) |
-[Documentation](https://aip.transparent.co.nz/foldermonitor/) |
-
+![AIP logo](https://aip.transparent.co.nz/wp-content/uploads/2025/06/AIP_grey_transparent_background_github-e1750625832556.png)
 
 # 🚀 Quick Start
 
-1. **Install Python**: Download from [rclone.org](https://rclone.org/) and add it to your PATH.
+1. **Install Python**: Download from [rclone.org](https://rclone.org/downloads/) and add it to your PATH.
 2. **Install rclone**: Download from [python.org](https://www.python.org/downloads/) and add it to your PATH.
-3. **Recommended: Setup Python Environment**:
+3. **Setup Python Virtual Environment**:
   
     ```bash
     # Create a virtual environment if needed, for example in your application folder
@@ -28,8 +26,7 @@
     pip install -r requirements.txt
     ```
 
-
-4. **Verify: Run the self-test script**:
+5. **Verify: Run the self-test script**:
 
     ```bash
     python check-env.py
@@ -41,68 +38,59 @@
     python config_models.py
     ```
 
-7. **Run FolderMonitor**:    
+7. **Run FolderMonitor**:
+
+   ```bash
    python folder_monitor.py --config-path "./conf/config.yaml"
+   ```
 
+##
 
-# FolderMonitor
-FolderMonitor monitors a folder for changes and propagest thos changes to a target destination.  
-The target destination is usually a cloud storage provider like iDrive, BackBlaze, Amazon S3 or Google Drive.  
-Examples of other targets are a shared drive, a local drive or an FTP share.  
-FolderMonitor uses rclone as a tool to propagate changes.
+# Folder Monitor
+
+[Website](https://aip.transparent.co.nz) |
+[Documentation](https://aip.transparent.co.nz/foldermonitor/) |
+
+FolderMonitor monitors a folder and files in it for changes and propagates folders and files a target destination.  
+The target destination can be a cloud storage provider, FTP server, local drive or shared folder.
+Examples of cloud storage providers are:
+* Microsoft OneDrive
+* Google Drive
+* Amazon S3
+* IDrive E3
+* Backblaze B2
+* Any S3 compatible cloud storage provider.
+* A WEBDAV server
+* Any FTP server
+
+FolderMonitor uses rclone as ActionHandler to propagate changes.
+Other ActionHandlers can be added if required, for example an API ActionHandler.
 
 ## Acknowledgments
-This project was developed with the assistance of Google Gemini.  
+
+This project was developed with the assistance of Google Gemini.
+There is a VS Code extension for Google Gemini Code Assist in agent mode.
+Highly recommended.
 
 ## Features
 
-  * folder_monitor.py  
+* folder_monitor.py  
     This is the core script that monitors a folder for changes and propagates changes to the destination.  
     Call example:  
-      python folder_monitor.py --config-path "./conf/config.yaml 
-  * YAML configuration file
+    python folder_monitor.py --config-path "./conf/config.yaml
+* YAML configuration file
     The YAML configuration file, default ./conf/config.yaml, contains settings for logging and one or more monitors
-
-## Installation & documentation
-| Application or module | How to install |
-|---|---|
-| rclone | Download from https://rclone.org/downloads/ |
-| Python | Download from https://rclone.org/downloads/ |
-| FolderMonitor | Download ZIP file from GitHub or git clone the repository  |
-| watchog | Use pip installer. See below |
-| PyYAML | Use pip installer. See below |
-
-Notes:  
-Best practice is to download and install rclone and Python from their official download locations.
-If you install from the Windows store or using Winget you may not get all components.
-
-First install Python if required. Next install the required Python modules using pip.
-For example FolderMonitor folder is C:\Apps\FolderMonitor
-Open a command shell or powershell.
-Go to folder C:\Apps\FolderMonitor
-Type: pip install -r scripts/requirements.txt
-
-If you have more than one Python applications on your PC, it is best practice to create a virtual Python environment.
-This avoids version conflicts when running different Python applications.
-Each Python virtual environment is isolated from another virtual environment.
-A Python virtual environment is implemented in a folder with all Python files required to run a particular Python application.
-Instructions are in FolderMonitor Python scripts and copied here for convenience.
-
-- It is recommended to use a virtual Python environment to avoid conflicts with other packages.
-- To create and activate a virtual environment:  
-    python -m venv .venv  
-    .\.venv\Scripts\Activate.ps1  (Windows)  
-    source .venv/bin/activate  (macOS/Linux)  
-- After Python has been installed you can install required modules with:  
-    pip install -r scripts/requirements.txt  
+* Decoupled architecture where file system events are decoupled from the processing of events
+* Events are processed by an ActionHandler, currently RcloneActionHandler, that runs in a separate thread
 
 ## License
-This is free software under the terms of the MIT license included in this package.  
-See file: COPYING.txt
 
+This is free software under the terms of the MIT license included in this package.  
+See file: LICENSE
 
 ## Why FolderMonitor
-You can find more information on website: https://aip.transparent.co.nz
+
+You can find more information on website [aip.transparent.co.nz](https://aip.transparent.co.nz)
 
 Project FolderMonitor grew organically over time.
 All tools I used had some problem, like no real backup, cloud provider locking, hard to debug, huge CPU usage (let me guess ...)
@@ -124,23 +112,25 @@ This is when FolderMonitor was born.
 It's a Python application that depends on only a few components: rclone and watchdog.  
 While I had little expereince with Python, it has proven to be a great choice.  
 VS Code has fantastic support for Python development like code completion and debugging.  
-
-I installed GitHub Copilot extension for code generation and suggestions.  
-In addition I used Google Gemini to chat outside VS Code. This worked just great.  
-This setup allowed me to get a different perspective and alternative solutions.  
+I added Google Gemini Code Assist extension. Gemini worked just great.  
 
 ## Future development
+
 It is difficult to predict the future and what it measn for FolderMonitor.
-Future development depends on community support and request coming from the community.
+Future development depends on community support and request.
 
 Some new features could include:
-- Intrusion detection and ransomware protection
-  Monitoring changes of files and folders could trigger an alarm, like email, SMS message or a Discours event.
-- Trigger a CI/CD job
-- Develop a GUI to configure and start a monitor
+
+* Intrusion detection
+  This could trigger an alarm, like email, SMS message or a Discours event.
+* Ransomware protection
+  This could trigger an alarm, like email, SMS message or a Discours event.
+* Develop a GUI to create a configuration file, test a configuration and start a monitor
 
 ---
+
 ### 👤 Author
-**John Zoetebier**
-- Website: [aip.transparent.co.nz](http://aip.transparent.co.nz)
-- GitHub: [@yourusername]
+
+John Zoetebier
+
+* Website: [aip.transparent.co.nz](http://aip.transparent.co.nz)
