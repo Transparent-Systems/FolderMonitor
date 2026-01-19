@@ -35,7 +35,7 @@
 6. **Verify: Validate your config.yaml file**:
 
     ```bash
-    python config_models.py
+    python check_config.py --config-path "./conf/config.yaml"
     ```
 
 7. **Run FolderMonitor**:
