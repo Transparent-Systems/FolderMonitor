@@ -27,24 +27,10 @@ logging:
   log_level: debug # debug | info | warning | error | critical
 
 monitors:
-  - name: "cloud to drive"
+  - name: "Idrive e2"
     enabled: true
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Test1"
-    destination_path: "drive:test-foldermonitor/Test1"
-    rclone_flags: "--transfers 8"
-    exclude_patterns: 
-      - "excluded folder"
-    # testing:
-    #   check_delay: 3
-    backup:
-      enabled: true
-      interval: ""
-      mode: "copy"
-
-  - name: "cloud to e2"
-    enabled: true
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Test2"
-    destination_path: "e2:test-foldermonitor/Test2"
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Idrive"
+    destination_path: "e2:test-foldermonitor/Idrive"
     rclone_flags: "--transfers 8 --s3-no-check-bucket"
     exclude_patterns: 
       - "excluded folder"
@@ -55,11 +41,24 @@ monitors:
       interval: "1d"
       mode: "copy"
  
+  - name: "Backblaze b2"
+    enabled: true
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Backblaze"
+    destination_path: "b2:test-foldermonitor/Backblaze"
+    rclone_flags: "--transfers 8"
+    exclude_patterns: 
+      - "excluded folder"
+    # testing:
+    #   check_delay: 3
+    backup:
+      enabled: true
+      interval: ""
+      mode: "copy"
 
-  - name: "internxt drive"
+  - name: "Internxt drive"
     enabled: true
     monitor_path: "D:/Development/FolderMonitor/data/Source/internxt-drive"
-    destination_path: "e2:test-foldermonitor/internxt-drive"
+    destination_path: "internxt:test-foldermonitor/internxt-drive"
     rclone_flags: >
       --webdav-method PUT
       --tpslimit 4
