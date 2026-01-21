@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import time
 import yaml
 import sys
 from pathlib import Path
@@ -34,18 +35,30 @@ def run_path_check(monitor_name: str, source_path = "data/Source",destination_pa
         process_test_result.process(test_case_name=testname, test_ok=found, test_output=files)
         
         #####################################
-        testname = "Test 2 : Check destination path exists"
+        testname = "Test 2 : Copy temporary file to destination path"
+
+        # Create a temporary file name using this script name followed by a timestamp
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        script_path = os.path.abspath(__file__)
+        script_name = os.path.basename(script_path)
+        temp_file_name = f"{script_name}_{timestamp}.txt"
+        # temp_file_path must be source_path + relative path
+        temp_file_path = Path(source_path) / temp_file_name
+
+        destination_path = rclone_handler.get_destination_path(path=temp_file_path)
         (return_value, result_output) = rclone_handler.run_command(
-            ["lsd", destination_path]
-        )
-
-        if return_value == 0:
-            found = True
-        else:
-            found = False
-
+            ["copyto", script_path, destination_path]
+            )
         output_truncated = result_output[0:100] + " ..." if len(result_output) > 100 else result_output
-        process_test_result.process(test_case_name=testname, test_ok=found, test_output=output_truncated)
+        process_test_result.process(test_case_name=testname, test_ok={return_value == 0}, test_output=output_truncated)
+
+        #####################################        
+        if return_value == 0:
+            # Remove temporary file
+            (return_value, result_output) = rclone_handler.run_command(
+                ["deletefile", destination_path]
+                )
+            process_test_result.process(test_case_name=f"{testname} - delete temporary file", test_ok={return_value == 0}, test_output=result_output)
 
     except Exception as e:
         logger.debug(f"\n--- Path tests for {monitor_name} FAILED: {e} ---")
