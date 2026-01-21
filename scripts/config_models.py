@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, ConfigDict
 import yaml
 import logging
 import argparse
@@ -7,6 +7,7 @@ import argparse
 class ConfigModels:
     """Pydantic models for configuration validation."""
     class Logging(BaseModel):
+        model_config = ConfigDict(extra='forbid')
         log_file_name: str
         log_folder: str
         log_max_file_size: int
@@ -14,14 +15,17 @@ class ConfigModels:
         log_level: str
 
     class Testing(BaseModel):
+        model_config = ConfigDict(extra='forbid')
         check_delay: int
 
     class Backup(BaseModel):
+        model_config = ConfigDict(extra='forbid')
         enabled: bool
         interval: str
         mode: str
 
     class Monitor(BaseModel):
+        model_config = ConfigDict(extra='forbid')
         name: str
         enabled: bool
         monitor_path: str
@@ -32,6 +36,7 @@ class ConfigModels:
         backup: Optional['ConfigModels.Backup'] = None
 
     class Config(BaseModel):
+        model_config = ConfigDict(extra='forbid')
         version: str
         logging: 'ConfigModels.Logging'
         monitors: List['ConfigModels.Monitor']

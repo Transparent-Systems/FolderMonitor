@@ -137,7 +137,7 @@ class ProcessTestResult:
         test_case_name: str,
         test_ok: bool,
         test_output: str | list,
-        test_step_name="",
+        test_step_name: str = "",
     ):
         """
         Process test result.

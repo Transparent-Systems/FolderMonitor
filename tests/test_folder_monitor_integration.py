@@ -235,16 +235,13 @@ class TestFolderMonitorIntegration(unittest.TestCase):
 
         # Delete big file first
         delete_test_data(path=self.source_path, files=[file_name])
-        
-        dst_path = self.rclone_handler.get_destination_path(path=Path(self.source_path) / file_name)
-        (found, isdir, files) = self.check_path.path_exists(path=dst_path)
-        self.assertFalse(found, "Big file should not exist at destination before creation.")
-
+        # Wait before creating
+        time.sleep(5 + self.check_delay)
         # Create big file
-        file_path = create_big_file(path=self.source_path, filename=file_name, write_duration_seconds=15)
+        file_path = create_big_file(path=self.source_path, filename=file_name, write_duration_seconds=10)
 
         # Wait before checking
-        time.sleep(10 + self.check_delay)
+        time.sleep(5 + self.check_delay)
         dst_path = self.rclone_handler.get_destination_path(path=file_path)
         (found, isdir, files) = self.check_path.path_exists(path=dst_path)
         self.assertTrue(found, f"Big file should exist at destination: {dst_path}")

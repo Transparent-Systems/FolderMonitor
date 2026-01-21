@@ -48,8 +48,11 @@ class CheckPath:
             path (str): the path we check to exist
 
         Returns:
-            tuple (bool, bool, list): A tuple indicating if the path exists, if it is a directory and a list of some data.
-                                      The list of data can contain a list of files / folders or an error message
+            tuple (bool, bool, list): A tuple indicating:
+                - True if the path exists
+                - True, if it is a directory
+                - A list of files found so far in the data returned.
+                The list of data can contain a list of files / folders or an error message
         """
 
         time.sleep(self.check_delay)  # Sleep before checking

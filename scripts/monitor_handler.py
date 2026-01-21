@@ -126,7 +126,7 @@ class MonitorEventHandler(FileSystemEventHandler):
         self.action_dispatcher.queue_action(context)
 
         if event.is_directory:
-            self.logger.info(f"on_created: folder '{event.src_path}'; create postponed to on_modified event")
+            self.logger.debug(f"on_created: folder '{event.src_path}'; create postponed to on_modified event")
         else:
             # If the event is a file creation, we copy the specific file
             self.logger.debug(
@@ -138,7 +138,7 @@ class MonitorEventHandler(FileSystemEventHandler):
         Handles file and directory deletion events.
         """
         # Log the deletion event with the source path
-        self.logger.info(f"on_deleted: src_path='{event.src_path}'")
+        self.logger.debug(f"on_deleted: src_path='{event.src_path}'")
 
         if is_excluded(event.src_path, self.exclude_patterns):
             self.logger.debug(
@@ -160,7 +160,7 @@ class MonitorEventHandler(FileSystemEventHandler):
         Handles file modification events.
         """
 
-        self.logger.info(
+        self.logger.debug(
             # Log the modification event details.
             f"on_modified: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
         )
@@ -195,7 +195,7 @@ class MonitorEventHandler(FileSystemEventHandler):
             return
         
         # Log the closed event details.
-        self.logger.info(
+        self.logger.debug(
             f"on_closed: src_path='{event.src_path}', event.is_directory={event.is_directory}, event_type={event.event_type}, type(event)={type(event).__name__}"
         )
         
@@ -218,7 +218,7 @@ class MonitorEventHandler(FileSystemEventHandler):
             return
 
         # Log the move/rename event, showing both old and new paths.
-        self.logger.info(
+        self.logger.debug(
             f"on_moved - renamed from {event.src_path} to {event.dest_path}"
         )
 

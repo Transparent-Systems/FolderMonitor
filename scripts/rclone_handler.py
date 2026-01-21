@@ -110,12 +110,12 @@ class RcloneHandler:
 
     def run_command(
         self, rclone_parms: list[str], additional_args_str=""
-    ):
+    )-> tuple[int, str ]:
         """
         Run rclone_command is a subprocess
-        Return tupe (result_code and result_output)
-        Param rclone_command: list or comma delimited string
-        Param args_str: a string with arguments
+        Return tuple (result_code and result_output)
+        Param rclone_parms: list of commands
+        Param additional_args_str: a string with arguments
         """
 
         # Parse Additional Arguments Safely
