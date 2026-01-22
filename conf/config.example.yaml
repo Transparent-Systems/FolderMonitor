@@ -6,10 +6,9 @@
   #   monitor_path: "folder to monitor"
   #   destination_path: "cloud storage, local folder or shared folder"
   #   rclone_flags: rcone flags specific for this monitor
-  #     if flags are stored in the rclone configuration there is no reason to repeat then here.
+  #     if flags are stored in the rclone configuration there is no reason to repeat them here.
   #   testing: properties used for testing properties, for development or issue isolation.
   # backup: set of properties to run one or more backups
-  #   At least one backup is required to upload loacal files to the destination.
   #   enabled: true | false
   #   interval: s | 
   #   mode: copy | sync
