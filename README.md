@@ -2,11 +2,12 @@
 
 ![AIP logo](https://aip.transparent.co.nz/wp-content/uploads/2025/06/AIP_grey_transparent_background_github-e1750625832556.png)
 
-# 🚀 Quick Start
+## 🚀 Quick Start
 
 1. **Install Python**: Download from [rclone.org](https://rclone.org/downloads/) and add it to your PATH.
 2. **Install rclone**: Download from [python.org](https://www.python.org/downloads/) and add it to your PATH.
-3. **Setup Python Virtual Environment**:
+3. **Configure rclone**: Run `rclone config` to setup a new remote.
+4. **Setup Python Virtual Environment**:
   
     ```bash
     # Create a virtual environment if needed, for example in your application folder
@@ -14,39 +15,37 @@
     
     # Activate the environment
     # On Windows:
-    .\.venv\Scripts\activate
+    ./.venv/Scripts/activate
 
     # On macOS/Linux:
     source .venv/bin/activate
     ```
 
-4. **Install Requirements**:
+5. **Install Requirements**:
 
     ```bash
     pip install -r requirements.txt
     ```
 
-5. **Verify: Run the self-test script**:
+6. **Verify: Run the self-test script**:
 
     ```bash
     python check-env.py
     ```
 
-6. **Verify: Validate your config.yaml file**:
+7. **Verify: Validate your config.yaml file**:
 
     ```bash
     python check_config.py --config-path "./conf/config.yaml"
     ```
 
-7. **Run FolderMonitor**:
+8. **Run FolderMonitor**:
 
    ```bash
    python folder_monitor.py --config-path "./conf/config.yaml"
    ```
 
-##
-
-# Folder Monitor
+## Folder Monitor
 
 [Website](https://aip.transparent.co.nz) |
 [Documentation](https://aip.transparent.co.nz/foldermonitor/) |
@@ -54,6 +53,7 @@
 FolderMonitor monitors a folder and files in it for changes and propagates folders and files a target destination.  
 The target destination can be a cloud storage provider, FTP server, local drive or shared folder.
 Examples of cloud storage providers are:
+
 * Microsoft OneDrive
 * Google Drive
 * Amazon S3
