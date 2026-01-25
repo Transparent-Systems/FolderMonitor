@@ -1,36 +1,19 @@
 """
 Script: folder_monitor.py
-Version: v1.0.0
+Version: v1.2.0
 Author: John Zoetebier
-Date: 2025-05-10
-    It logs the type of change and the file path to both the console and a log file.
-    The script utilizes the rclone_handler module to copy or delete files and folders using rclone.
-    Designed to run indefinitely, it monitors the specified folder for changes until interrupted by the user (Ctrl+C).
-    The script is compatible with both Windows and Linux systems.
 Requirements:
     1) rclone v1.64.2 (https://rclone.org/downloads/)
     2) Python 3.13.0 (https://www.python.org/downloads/)
     3) Python modules in requirements.txt
 Usage:
-    Examples:
-    python folder_monitor.py
-    python folder_monitor.py --config-path conf/config.yaml
-
-    Arguments:
-        --config-path: Path to monitor configuration file. Default path is ../conf/config.yaml.
+    Run the following command to get help:
+    python folder_monitor.py -h
 Notes:
-    - It is recommended to use a virtual Python environment to avoid conflicts with other packages.
-    - To create and activate a virtual environment:
-        python -m venv .venv
-        ./.venv/Scripts/Activate.ps1  (Windows)
-        source .venv/bin/activate  (macOS/Linux)
-    - After Python has been installed you can install required modules with:
-        pip install -r requirements.txt
+    See: README.md for more details.
 Classes:
     MyEventHandler: Handles file system events and triggers rclone operations.
     MonitorHandler: Manages the observer and event handler lifecycle.
-Entry Point:
-    Parses command-line arguments, initializes logging and monitoring, and keeps the script running until interrupted.
 """
 
 import os
@@ -52,6 +35,7 @@ from rclone_handler import RcloneHandler
 from monitor_handler import MonitorHandler
 from utils.logging_util import get_unique_logger
 from utils.generic_util import convert_to_seconds
+from utils.diagnostic_util import DiagnosticUtil
 
 
 def configure_pid_file(pid_file_path: str) -> bool:
@@ -247,17 +231,38 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script monitors changes on files and subfolders in the monitor folder."
     )
-    parser.usage = "python folder_monitor.py --config-path <path>"
+    # 1. A Flag (Boolean): Doesn't require a value. If present, it's True.
     parser.add_argument(
-        "--config-path",
+        "--test-mode", 
+        "-t", 
+        action="store_true", 
+        help="Run environment and configuration checks, then exit."
+    )
+    parser.add_argument(
+        "--config",
+        "-c",
         type=str,
-        help="Path of monitor configuration file. Default is conf/config.yaml",
+        help="Path to configuration YAML file. Default is conf/config.yaml",
         default="conf/config.yaml",
     )
+
     args = parser.parse_args()
 
+    # If we are running in test_mode then run the diagnostic tests only
+    if args.test_mode:
+        diagnostic_util = DiagnosticUtil()
+        if (not diagnostic_util.check_env(
+            config_path=args.config
+            )):
+            sys.exit(1)
+
+        diagnostic_util.check_config(
+            config_path=args.config
+            )
+        diagnostic_util.print_overview()
+        sys.exit()
+
     # Load configuration from the monitor config file
-    # monitor_config = ConfigHandler(args.config_path)
     with open(args.config_path, "r") as file:
         monitor_config = yaml.safe_load(file)
 
@@ -327,6 +332,7 @@ if __name__ == "__main__":
     logger.debug(
         f"folder_monitor: setup logging ready. Log level: {log_config.get('log_level', 'INFO').upper()}"
     )
+
     config_version = monitor_config.get("version")
     logger.debug(f"Configuration version: {config_version}")
 

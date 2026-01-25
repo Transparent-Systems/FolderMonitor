@@ -23,27 +23,27 @@
 
 5. **Install Requirements**:
 
+    Skip this step if you downloaded foldermonitor.exe
+
     ```bash
     pip install -r requirements.txt
     ```
 
-6. **Verify: Run the self-test script**:
+6. **Verify: Run folder monitor in test mode**:
 
     ```bash
-    python check-env.py
-    ```
-
-7. **Verify: Validate your config.yaml file**:
-
-    ```bash
-    python check_config.py --config-path "./conf/config.yaml"
+    python foldermonitor.py -t -c ./conf/config.yaml
+    OR
+    foldermonitor.exe -t -c ./conf/config.yaml
     ```
 
 8. **Run FolderMonitor**:
 
-   ```bash
-   python folder_monitor.py --config-path "./conf/config.yaml"
-   ```
+    ```bash
+    python folder_monitor.py -c "./conf/config.yaml"
+    OR
+    foldermonitor.exe -c "./conf/config.yaml"
+    ```
 
 ## Folder Monitor
 
@@ -90,7 +90,7 @@ See file: LICENSE
 
 ## Why FolderMonitor
 
-You can find more information on website [aip.transparent.co.nz](https://aip.transparent.co.nz)
+You can find more information on website [aip.transparent.co.nz/FolderMonitor](https://aip.transparent.co.nz/FolderMonitor)
 
 Project FolderMonitor grew organically over time.
 All tools I used had some problem, like no real backup, cloud provider locking, hard to debug, huge CPU usage (let me guess ...)
