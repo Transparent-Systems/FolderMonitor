@@ -233,19 +233,18 @@ if __name__ == "__main__":
     )
     # 1. A Flag (Boolean): Doesn't require a value. If present, it's True.
     parser.add_argument(
-        "--test-mode", 
         "-t", 
+        "--test-mode", 
         action="store_true", 
         help="Run environment and configuration checks, then exit."
     )
     parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to configuration YAML file. Default is conf/config.yaml",
+        "-c", "--config", 
+        type=str, 
         default="conf/config.yaml",
+        metavar="<PATH>", 
+        help="Path to the configuration file"
     )
-
     args = parser.parse_args()
 
     # If we are running in test_mode then run the diagnostic tests only
