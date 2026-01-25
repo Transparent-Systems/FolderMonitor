@@ -4,11 +4,13 @@
 
 ## 🚀 Quick Start
 
-1. **Install Python**: Download from [rclone.org](https://rclone.org/downloads/) and add it to your PATH.
-2. **Install rclone**: Download from [python.org](https://www.python.org/downloads/) and add it to your PATH.
+1. **Install Python**: Download from [python.org](https://www.python.org/downloads/) and add it to your PATH.
+2. **Install rclone**: Download from [rclone.org](https://rclone.org/downloads/) and add it to your PATH.
 3. **Configure rclone**: Run `rclone config` to setup a new remote.
 4. **Setup Python Virtual Environment**:
   
+    Skip this step if you downloaded foldermonitor.exe
+
     ```bash
     # Create a virtual environment if needed, for example in your application folder
     python -m venv .venv
