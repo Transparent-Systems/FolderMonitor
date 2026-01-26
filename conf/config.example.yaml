@@ -1,4 +1,4 @@
-  # version: application version
+  # version: Configuration version
   # logging: logging properties
   # monitors: list of monitors
   #   name: name of the monitor
@@ -16,7 +16,7 @@
   #       sync will delete files in destination_path that are not in source folder. 
 
 
-version: "1.0"
+version: "1.2.0"
 
 logging:
   log_file_name: folder_monitor.log
@@ -41,7 +41,7 @@ monitors:
       mode: "copy"
  
   - name: "Backblaze b2"
-    enabled: true
+    enabled: false
     monitor_path: "D:/Development/FolderMonitor/data/Source/Backblaze"
     destination_path: "b2:test-foldermonitor/Backblaze"
     rclone_flags: "--transfers 8"
@@ -55,7 +55,7 @@ monitors:
       mode: "copy"
 
   - name: "Internxt drive"
-    enabled: true
+    enabled: false
     monitor_path: "D:/Development/FolderMonitor/data/Source/internxt-drive"
     destination_path: "internxt:test-foldermonitor/internxt-drive"
     rclone_flags: >

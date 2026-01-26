@@ -8,12 +8,12 @@ import yaml
 from pathlib import Path
 
 # Add the path to the 'scripts' directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from config_models import ConfigModels
-from rclone_handler import RcloneHandler
-from utils.testing_util import ProcessTestResult
-from utils.rclone_util import CheckPath
+from scripts.config_models import ConfigModels
+from scripts.rclone_handler import RcloneHandler
+from scripts.utils.testing_util import ProcessTestResult
+from scripts.utils.rclone_util import CheckPath
 
 class DiagnosticUtil:
     """
@@ -125,6 +125,9 @@ class DiagnosticUtil:
         except Exception as e:
             self.logger.error(f"Failed to load config file: {e}")
             return False
+
+        config_version = monitor_config.get("version")
+        self.logger.debug(f"Configuration version: {config_version}")
 
         monitors = monitor_config.get("monitors", [])
         process_test_results: list[ProcessTestResult] = [] 

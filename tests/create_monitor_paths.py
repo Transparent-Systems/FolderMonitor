@@ -13,14 +13,11 @@ import sys
 import logging
 import yaml
 
-# Add the scripts directory to the Python path
-scriptspath = Path(__file__).parent / Path("../scripts")
-sys.path.insert(0, scriptspath.resolve().as_posix())
 
-from utils.logging_util import (
+from scripts.utils.logging_util import (
     get_unique_logger,
 )
-from utils.testing_util import (
+from scripts.utils.testing_util import (
     ProcessTestResult,
 )
 
@@ -29,9 +26,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script creates all required monitor paths configured in a monotor yaml file."
     )
-    parser.usage = "python test_monitor_handler_integration.py --config-path <path> --log-level <log level"
+    parser.usage = "python test_monitor_handler_integration.py --config <path> --log-level <log level"
     parser.add_argument(
-        "--config-path",
+        "--config",
         type=str,
         help="Path of monitor configuration file. Default is conf/config.yaml",
         default="conf/config.tests.yaml",
@@ -59,12 +56,12 @@ if __name__ == "__main__":
     # --- End Central Logging Setup ---
 
     # Load configuration from the monitor config file
-    with open(args.config_path, "r") as file:
+    with open(args.config, "r") as file:
         monitor_config = yaml.safe_load(file)
 
     log_config = monitor_config.get("logging")
     if log_config is None:
-        print(f"Configuration for 'logging' not found in {args.config_path}.")
+        print(f"Configuration for 'logging' not found in {args.config}.")
         sys.exit(1)
 
     LOG_FILE = log_config.get("log_filename", "folder_monitor.log")

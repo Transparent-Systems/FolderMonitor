@@ -5,7 +5,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, List
-from rclone_handler import RcloneHandler
+from scripts.rclone_handler import RcloneHandler
 
 @dataclass
 class ActionContext:

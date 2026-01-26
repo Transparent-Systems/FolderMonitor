@@ -35,11 +35,10 @@ from watchdog.events import (
     DirDeletedEvent,
     DirMovedEvent,
 )
-from rclone_handler import RcloneHandler
-from action_handler import ActionContext, ActionDispatcher, RcloneActionHandler
-from utils.rclone_util import CheckPath
-from utils.logging_util import get_unique_logger
-
+from scripts.rclone_handler import RcloneHandler
+from scripts.action_handler import ActionContext, ActionDispatcher, RcloneActionHandler
+from scripts.utils.rclone_util import CheckPath
+from scripts.utils.logging_util import get_unique_logger
 
 def is_excluded(path_str: str, exclude_patterns: list[str]) -> bool:
     """

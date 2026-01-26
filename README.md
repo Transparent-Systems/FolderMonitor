@@ -79,7 +79,7 @@ Highly recommended.
 * folder_monitor.py  
     This is the core script that monitors a folder for changes and propagates changes to the destination.  
     Call example:  
-    python folder_monitor.py --config-path "./conf/config.yaml
+    python folder_monitor.py --config "./conf/config.yaml
 * YAML configuration file
     The YAML configuration file, default ./conf/config.yaml, contains settings for logging and one or more monitors
 * Decoupled architecture where file system events are decoupled from the processing of events

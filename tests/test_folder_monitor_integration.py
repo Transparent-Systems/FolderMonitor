@@ -290,7 +290,8 @@ if __name__ == "__main__":
         description="Run integration tests for folder monitors using unittest."
     )
     parser.add_argument(
-        "--config-path",
+        "-c",
+        "--config",
         type=str,
         default="conf/config.tests.yaml",
         help="Path to monitor configuration file."
@@ -336,11 +337,11 @@ if __name__ == "__main__":
     root_logger.addHandler(console_handler)
 
     # Load Config
-    if not ConfigModels().validate(config_path=args.config_path, logger=root_logger):
-        root_logger.error(f"Configuration file '{args.config_path}' is invalid.")
+    if not ConfigModels().validate(config_path=args.config, logger=root_logger):
+        root_logger.error(f"Configuration file '{args.config}' is invalid.")
         sys.exit(1)
 
-    with open(args.config_path, "r") as file:
+    with open(args.config, "r") as file:
         monitor_config = yaml.safe_load(file)
 
     # Setup File Logging

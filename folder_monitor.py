@@ -26,16 +26,14 @@ import yaml
 import argparse
 import logging
 
-# Add the scripts directory to the Python path
-scriptspath = Path(__file__).parent / Path("scripts")
-sys.path.insert(0, scriptspath.resolve().as_posix())
 
-from config_models import ConfigModels
-from rclone_handler import RcloneHandler
-from monitor_handler import MonitorHandler
-from utils.logging_util import get_unique_logger
-from utils.generic_util import convert_to_seconds
-from utils.diagnostic_util import DiagnosticUtil
+from version import __version__
+from scripts.config_models import ConfigModels
+from scripts.rclone_handler import RcloneHandler
+from scripts.monitor_handler import MonitorHandler
+from scripts.utils.logging_util import get_unique_logger
+from scripts.utils.generic_util import convert_to_seconds
+from scripts.utils.diagnostic_util import DiagnosticUtil
 
 
 def configure_pid_file(pid_file_path: str) -> bool:
@@ -227,14 +225,14 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
 
 
 if __name__ == "__main__":
-    print("This is file_monitor script running directly.")
+    # Use the string for logging and display
+    print(f"Starting FolderMonitor v{__version__}")
     parser = argparse.ArgumentParser(
         description="This script monitors changes on files and subfolders in the monitor folder."
     )
     # 1. A Flag (Boolean): Doesn't require a value. If present, it's True.
     parser.add_argument(
-        "-t", 
-        "--test-mode", 
+        "-t", "--test-mode", 
         action="store_true", 
         help="Run environment and configuration checks, then exit."
     )
@@ -262,12 +260,12 @@ if __name__ == "__main__":
         sys.exit()
 
     # Load configuration from the monitor config file
-    with open(args.config_path, "r") as file:
+    with open(args.config, "r") as file:
         monitor_config = yaml.safe_load(file)
 
     log_config = monitor_config.get("logging")
     if log_config is None:
-        print(f"Configuration for 'logging' not found in {args.config_path}.")
+        print(f"Configuration for 'logging' not found in {args.config}.")
         sys.exit(1)
 
         # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
@@ -336,9 +334,9 @@ if __name__ == "__main__":
     logger.debug(f"Configuration version: {config_version}")
 
     # First validate monitor config file
-    if not ConfigModels().validate(config_path=args.config_path, logger=logger):
+    if not ConfigModels().validate(config_path=args.config, logger=logger):
         logger.error(
-            f"Configuration file '{args.config_path}' is invalid. Exiting."
+            f"Configuration file '{args.config}' is invalid. Exiting."
         )
         sys.exit(1)
 
@@ -351,7 +349,7 @@ if __name__ == "__main__":
     monitors = monitor_config.get("monitors")
     if monitors is None:
         logger.error(
-            f"Configuration for 'monitors' not found in {args.config_path}."
+            f"Configuration for 'monitors' not found in {args.config}."
         )
         sys.exit(1)
 

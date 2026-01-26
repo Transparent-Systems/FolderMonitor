@@ -83,7 +83,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
    
     config_models = ConfigModels()
-    if (config_models.validate(config_path=args.config_path, logger=console_logger)):
+    if (config_models.validate(config_path=args.config, logger=console_logger)):
         console_logger.debug("Main - Configuration validation succeeded.")
     else:
         console_logger.error("Main - Configuration validation failed.")

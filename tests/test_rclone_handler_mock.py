@@ -11,10 +11,8 @@ import subprocess
 # This assumes that the rclone_handler module is in the scripts directory
 # sys.path.insert works at runtime, so we can use it to include the scripts directory
 # For VS Code language server add folder scripts to extra path in workspace settings: use Quick Fix
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../mocks")))
 
-from rclone_handler import RcloneHandler
-
+from scripts.rclone_handler import RcloneHandler
 
 class TestRcloneHandler(unittest.TestCase):
 
