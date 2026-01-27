@@ -4,48 +4,46 @@
 
 ## 🚀 Quick Start
 
-1. **Install Python**: Download from [python.org](https://www.python.org/downloads/) and add it to your PATH.
-2. **Install rclone**: Download from [rclone.org](https://rclone.org/downloads/) and add it to your PATH.
-3. **Configure rclone**: Run `rclone config` to setup a new remote.
-4. **Setup Python Virtual Environment**:
-  
-    Skip this step if you downloaded foldermonitor.exe
+1. **Install rclone**: Download from [rclone.org](https://rclone.org/downloads/) and add it to your PATH.
+2. **Configure rclone**: Run `rclone config` to setup a new remote.
+3. **Run FolderMonitor**:
 
-    ```bash
-    # Create a virtual environment if needed, for example in your application folder
-    python -m venv .venv
-    
-    # Activate the environment
-    # On Windows:
-    ./.venv/Scripts/activate
-
-    # On macOS/Linux:
-    source .venv/bin/activate
+    *Option A: Using the Executable (Windows)*
+    ```cmd
+    foldermonitor.exe -c "./conf/config.yaml"
     ```
 
-5. **Install Requirements**:
-
-    Skip this step if you downloaded foldermonitor.exe
-
+    *Option B: Running from Source*
+    
+    a. **Install Python**: Download from [python.org](https://www.python.org/downloads/).
+    
+    b. **Setup Environment**:
     ```bash
+    python -m venv .venv
+    # Windows:
+    ./.venv/Scripts/activate
+    # macOS/Linux:
+    source .venv/bin/activate
+    
     pip install -r requirements.txt
     ```
 
-6. **Verify: Run folder monitor in test mode**:
-
-    ```bash
-    python foldermonitor.py -t -c ./conf/config.yaml
-    OR
-    foldermonitor.exe -t -c ./conf/config.yaml
-    ```
-
-8. **Run FolderMonitor**:
-
+    c. **Run**:
     ```bash
     python folder_monitor.py -c "./conf/config.yaml"
-    OR
-    foldermonitor.exe -c "./conf/config.yaml"
     ```
+4. **Recommended: run FolderMonitor in test mode**   
+   Running folder monitor in test mode ensures your environment and config file are good.
+   
+   Test mode will check monitor path and if destination path is writable.
+    ```bash
+    foldermonitor.exe -t -c "./conf/config.yaml"
+    ```
+    OR
+    ```bash
+    python folder_monitor.py -t -c "./conf/config.yaml"
+   ```
+
 
 ## Folder Monitor
 
