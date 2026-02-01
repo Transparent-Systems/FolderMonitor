@@ -22,7 +22,6 @@ class ConfigModels:
         model_config = ConfigDict(extra='forbid')
         enabled: bool
         interval: str
-        mode: str
 
     class Monitor(BaseModel):
         model_config = ConfigDict(extra='forbid')

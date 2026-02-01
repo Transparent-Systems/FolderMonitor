@@ -62,7 +62,7 @@ def configure_pid_file(pid_file_path: str) -> bool:
         logger.debug(
             f"Crash PID file '{pid_file_path}' does not exist. Creating a new one."
         )
-        logger.debug("This script will now enter normal mode.")
+        logger.debug("This script will now enter normal run mode.")
         # Ensure the pid directory exists
         pid_dir = os.path.dirname(pid_file_path)
         if not os.path.exists(pid_dir):
@@ -140,43 +140,24 @@ def perform_backup(monitor_config, reason="scheduled"):
     )
     # Use rclone_handler for backup operations
     # Check if mode is copy or sync
-    backup_config = monitor_config.get("backup", {})
-    mode = backup_config.get("mode", "copy")  # Default to "copy" if not specified
-
-    # Fix faulty configuration value
-    if mode not in ["copy", "sync"]:
-        logger.debug(
-            f"Invalid mode '{mode}' for monitor '{monitor_name}'. Defaulting to 'copy'."
-        )
-        mode = "copy"
-
     destination_path = monitor_config.get("destination_path")
     monitor_path = monitor_config.get("monitor_path")
     rclone_flags = monitor_config.get("rclone_flags", "")
     rclone_handler = RcloneHandler(destination_path, monitor_path, logger, rclone_flags)
 
-    if mode == "sync":
-        logger.debug(
-            f"Syncing folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
-        )
-        rclone_handler.sync_folder(source_path=monitor_config["monitor_path"])
-        logger.debug(
-            f"Ready syncing folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
-        )
-    else:  # Default to "copy"
-        logger.debug(
-            f"Copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
-        )
-        rclone_handler.copy_folder(source_path=monitor_config["monitor_path"])
-        logger.debug(
-            f"Ready copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
-        )
+    logger.debug(
+        f"Copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
+    )
+    rclone_handler.copy_folder(source_path=monitor_config["monitor_path"])
+    logger.debug(
+        f"Ready copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
+    )
 
     rclone_handler = None  # Clean up the rclone handler
 
 
 # This is the function that each thread will execute
-def monitor_backup_task(monitor_config, is_crash_recovery=False):
+def monitor_backup_task(monitor_config):
     """
     Executes backup operations for a given monitor configuration.
 
@@ -185,10 +166,7 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
 
     Args:
         monitor_config (dict): The configuration dictionary for a single monitor.
-        is_crash_recovery (bool): True if this task is part of a crash recovery
-                                   process, False otherwise.
     """
-
     monitor_name = monitor_config["name"]
     backup_config = monitor_config.get("backup", {})
     if not backup_config:
@@ -206,9 +184,6 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
     logger.debug(
         f"[{monitor_name}] Backup interval is {interval_seconds} seconds"
         )
-    # The logic for determining the backup interval is as follows:
-    # - If the interval is None or 0, a one-off backup will be performed immediately.
-    # - If the interval is positive, a recurring backup will be performed at the specified interval.
 
     if interval_seconds == 0:
         logger.debug(
@@ -216,6 +191,11 @@ def monitor_backup_task(monitor_config, is_crash_recovery=False):
         )
         perform_backup(monitor_config, reason="one-off (interval 0)")
         return  # Exit the thread after one-off backup
+    else:
+        logger.debug(
+            f"[{monitor_name}] Backup interval is > 0. Performing initial backup."
+        )
+        perform_backup(monitor_config, reason="initital backup (interval > 0)")
 
     logger.debug(f"[{monitor_name}] Backup scheduled every {interval_seconds} seconds.")
     # This loop will run indefinitely for recurring backups

@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import time
 import yaml
+import tempfile
 from pathlib import Path
 
 # Add the path to the 'scripts' directory to sys.path
@@ -185,15 +186,14 @@ class DiagnosticUtil:
         Run tests on source and destination paths (Internal helper).
         """
         self.logger.debug("--- Monitor path tests ---")
-
         # Create rclone_handler to check files at destination_path
         rclone_handler = RcloneHandler(base_destination_path=destination_path, base_source_path=source_path, logger=self.logger, rclone_flags='')
         process_test_result = ProcessTestResult(monitor_name)
         check_path = CheckPath(rclone_handler=rclone_handler, check_delay=check_delay)
         self.logger.debug(f"Starting tests for monitor name [{monitor_name}] on monitor path [{source_path}]...")
 
-        testname = "Test 1 : Check source path exists"
         try:
+            testname = "Test 1 : Check source path exists"
             #####################################
             
             (found, isdir, files) = check_path.path_exists(path=source_path)
@@ -202,41 +202,41 @@ class DiagnosticUtil:
             #####################################
             testname = "Test 2 : Copy temporary file to destination path"
 
-            # Create a temporary file name using this script name followed by a timestamp
+            # Create a temporary file name
             timestamp = time.strftime("%Y%m%d_%H%M%S")
-            # We use 'diagnostic_util' as script name for consistency or generic name
-            script_name = "diagnostic_util.py" 
-            temp_file_name = f"{script_name}_{timestamp}.txt"
-            
-            # Create a dummy file content to copy
-            # But Rclone copyto expects a local file path.
-            # We can create a temp file in the system temp or just use this file.
-            
-            temp_file_path_local = Path(__file__).resolve()
-            
-            # The destination path needs to include the filename
-            # temp_file_path must be source_path + relative path? 
-            # In original script: 
-            # temp_file_path = Path(source_path) / temp_file_name
-            # destination_path = rclone_handler.get_destination_path(path=temp_file_path)
-            # This logic calculates where the file WOULD go if it was in source_path. 
-            
+            temp_file_name = f"diagnostic_util_test.txt_{timestamp}.txt"
+            # Create a local temporary file with dummy content
+            with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".txt") as tmp_file:
+                tmp_file.write("This is a temporary test file for Folder Monitor diagnostics.")
+                temp_file_path_local = Path(tmp_file.name).resolve()
+
             virtual_source_file_path = Path(source_path) / temp_file_name
             destination_file_path = rclone_handler.get_destination_path(path=virtual_source_file_path)
+            self.logger.debug(f"temp_file_path_local: {temp_file_path_local}")            
+            self.logger.debug(f"virtual_source_file_path: {virtual_source_file_path}")
+            self.logger.debug(f"destination_file_path: {destination_file_path}")
             
-            (return_value, result_output) = rclone_handler.run_command(
-                ["copyto", temp_file_path_local.as_posix(), destination_file_path]
-            )
-            output_truncated = result_output[0:100] + " ..." if len(result_output) > 100 else result_output
-            process_test_result.process(test_case_name=testname, test_ok=(return_value == 0), test_output=output_truncated)
-
-            #####################################        
-            if return_value == 0:
-                # Remove temporary file
+            try:
                 (return_value, result_output) = rclone_handler.run_command(
-                    ["deletefile", destination_file_path]
+                    ["copyto", temp_file_path_local.as_posix(), destination_file_path]
                 )
-                process_test_result.process(test_case_name=f"{testname} - delete temporary file", test_ok=(return_value == 0), test_output=result_output)
+                output_truncated = result_output[0:100] + " ..." if len(result_output) > 100 else result_output
+                process_test_result.process(test_case_name=testname, test_ok=(return_value == 0), test_output=output_truncated)
+
+                #####################################        
+                if return_value == 0:
+                    # Remove temporary file from destination
+                    (return_value, result_output) = rclone_handler.run_command(
+                        ["deletefile", destination_file_path]
+                    )
+                    process_test_result.process(test_case_name=f"{testname} - delete temporary file", test_ok=(return_value == 0), test_output=result_output)
+            finally:
+                # Clean up local temporary file
+                try:
+                    if temp_file_path_local.exists():
+                        os.unlink(temp_file_path_local)
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete local temp file {temp_file_path_local}: {e}")
 
         except Exception as e:
             self.logger.debug(f"\n--- Path tests for {monitor_name} FAILED: {e} ---")

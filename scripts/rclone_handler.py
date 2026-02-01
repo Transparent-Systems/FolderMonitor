@@ -226,19 +226,7 @@ class RcloneHandler:
         return self.run_command(
             ["copy", source_path, destination_path], self.rclone_flags
         )
-
-    def sync_folder(self, source_path):
-        """
-        Sync the source path to the derived destination path
-        """
-
-        destination_path = self.get_destination_path(path=source_path)
-
-        # Use rclone sync to ensure the destination is an exact copy of the source
-        return self.run_command(
-            ["sync", source_path, destination_path], self.rclone_flags
-        )
-
+    
     def delete_file(self, destination_path):
         """
         Delete file at destination_path

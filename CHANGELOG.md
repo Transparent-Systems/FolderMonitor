@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.3.0] - 2026-02-01
+
+Removed mode from backup configuration.
+Now a backup only runs on copy mode, i.e backup will never delete a file at destination.
+
 ## [1.2.0] - 2026-01-26
 
 - Create exe file with PyInstaller

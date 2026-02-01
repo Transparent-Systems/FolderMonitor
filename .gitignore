@@ -28,8 +28,7 @@ ENV/
 
 # Configuration and Secrets
 # We ignore the actual test config so you don't leak paths/passwords
-conf/config.yaml
-conf/config.test.yaml
+tests/conf
 .env
 
 # Installer logs

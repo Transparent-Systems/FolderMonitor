@@ -1,22 +1,4 @@
-  # version: Configuration version
-  # logging: logging properties
-  # monitors: list of monitors
-  #   name: name of the monitor
-  #   enabled: true | false
-  #   monitor_path: "folder to monitor"
-  #   destination_path: "cloud storage, local folder or shared folder"
-  #   rclone_flags: rcone flags specific for this monitor
-  #     if flags are stored in the rclone configuration there is no reason to repeat them here.
-  #   testing: properties used for testing properties, for development or issue isolation.
-  # backup: set of properties to run one or more backups
-  #   enabled: true | false
-  #   interval: s | 
-  #   mode: copy | sync
-  #       copy files to destination
-  #       sync will delete files in destination_path that are not in source folder. 
-
-
-version: "1.2.0"
+version: "1.3.0"
 
 logging:
   log_file_name: folder_monitor.log
@@ -25,6 +7,9 @@ logging:
   log_max_backup_count: 5
   log_level: debug # debug | info | warning | error | critical
 
+# On Windows use forward slash "/"
+# Good: C:/path/to/monitor
+# Bad: C:\path\to\monitor
 monitors:
   - name: "Idrive e2"
     enabled: true
@@ -38,7 +23,7 @@ monitors:
     backup:
       enabled: true
       interval: "1d"
-      mode: "copy"
+      
  
   - name: "Backblaze b2"
     enabled: false
@@ -47,28 +32,28 @@ monitors:
     rclone_flags: "--transfers 8"
     exclude_patterns: 
       - "excluded folder"
-    # testing:
-    #   check_delay: 3
-    backup:
-      enabled: true
-      interval: ""
-      mode: "copy"
-
-  - name: "Internxt drive"
-    enabled: false
-    monitor_path: "D:/Development/FolderMonitor/data/Source/internxt-drive"
-    destination_path: "internxt:test-foldermonitor/internxt-drive"
-    rclone_flags: >
-      --webdav-method PUT
-      --tpslimit 4
-      --ignore-times
-      --no-check-certificate
-    exclude_patterns: 
-      - "excluded folder"
     testing:
       check_delay: 3
     backup:
       enabled: true
       interval: ""
-      mode: "copy"
+      
+
+  # - name: "Internxt drive"
+  #   enabled: false
+  #   monitor_path: "D:/Development/FolderMonitor/data/Source/internxt-drive"
+  #   destination_path: "internxt:test-foldermonitor/internxt-drive"
+  #   rclone_flags: >
+  #     --webdav-method PUT
+  #     --tpslimit 4
+  #     --ignore-times
+  #     --no-check-certificate
+  #   exclude_patterns: 
+  #     - "excluded folder"
+  #   testing:
+  #     check_delay: 3
+  #   backup:
+  #     enabled: true
+  #     interval: ""
+      
  
