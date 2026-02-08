@@ -1,59 +1,86 @@
-version: "1.3.0"
-
-logging:
-  log_file_name: folder_monitor.log
-  log_folder: logs # relative or full path like C:/Apps/FolderMonitor/logs.
-  log_max_file_size: 1000000
-  log_max_backup_count: 5
-  log_level: debug # debug | info | warning | error | critical
-
+version: "2.0.0"
 # On Windows use forward slash "/"
 # Good: C:/path/to/monitor
 # Bad: C:\path\to\monitor
 monitors:
-  - name: "Idrive e2"
-    enabled: true
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Idrive"
-    destination_path: "e2:test-foldermonitor/Idrive"
-    rclone_flags: "--transfers 8 --s3-no-check-bucket"
+  - name: "multi-remote-test"
+    monitor_path: "data/Source/multi-remote-test"
+    remote_path: "test-foldermonitor/multi-remote-test"
+    remote_profiles:
+      - "rclone-idrive-test"
+      - "backblaze-test"
     exclude_patterns: 
-      - "excluded folder"
-    testing:
-      check_delay: 3
+      - "excluded-folder"
+      - "*.tmp"
     backup:
-      enabled: true
-      interval: "1d"
-      
- 
-  - name: "Backblaze b2"
-    enabled: false
-    monitor_path: "D:/Development/FolderMonitor/data/Source/Backblaze"
-    destination_path: "b2:test-foldermonitor/Backblaze"
-    rclone_flags: "--transfers 8"
-    exclude_patterns: 
-      - "excluded folder"
-    testing:
-      check_delay: 3
-    backup:
-      enabled: true
       interval: ""
-      
 
-  # - name: "Internxt drive"
-  #   enabled: false
-  #   monitor_path: "D:/Development/FolderMonitor/data/Source/internxt-drive"
-  #   destination_path: "internxt:test-foldermonitor/internxt-drive"
-  #   rclone_flags: >
-  #     --webdav-method PUT
-  #     --tpslimit 4
-  #     --ignore-times
-  #     --no-check-certificate
-  #   exclude_patterns: 
-  #     - "excluded folder"
-  #   testing:
-  #     check_delay: 3
-  #   backup:
-  #     enabled: true
-  #     interval: ""
-      
- 
+  - name: "idrive-test-not-versioned"
+    monitor_path: "data/Source/idrive-cloud-storage"
+    remote_path: "test-foldermonitor/idrive-cloud-storage"
+    remote_profiles:
+      - "rclone-idrive-test"
+    exclude_patterns: 
+      - "excluded-folder"
+      - "*.tmp"
+    backup:
+      interval: ""
+
+  - name: "idrive-cloud-storage-versioned"
+    monitor_path: "data/Source/idrive-cloud-storage"
+    remote_path: "test-foldermonitor-versioned/idrive-cloud-storage"
+    remote_profiles:
+      - "e2"
+    exclude_patterns: 
+      - "excluded folder"
+    backup:
+      interval: ""
+  
+
+  - name: "backblaze-cloud-storage"
+    monitor_path: "data/Source/backblaze-cloud-storage"
+    remote_path: "test-foldermonitor/backblaze-cloud-storage"
+    remote_profiles:
+      - "b2"
+    backup:
+      interval: ""
+  
+  - name: "cloudflare-cloud-storage"
+    monitor_path: "data/Source/cloudflare-cloud-storage"
+    remote_path: "test-foldermonitor/cloudflare-cloud-storage"
+    remote_profiles:
+      - "r2"
+    backup:
+      interval: ""
+  
+
+  - name: "google drive cloud storage - personal credentials"
+    monitor_path: "data/Source/google-drive-personal"
+    remote_path: "test-foldermonitor/google-drive-personal"
+    remote_profiles:
+      - "drive-personal"
+    backup:
+      interval: ""
+  
+
+  - name: "google drive cloud storage - generic credentials"
+    monitor_path: "data/Source/google-drive-generic"
+    remote_path: "test-foldermonitor/google-drive-generic"
+    remote_profiles:
+      - "drive"
+    backup:
+      interval: ""
+
+  - name: "local storage"
+    monitor_path: "data/Source/local-storage"
+    remote_path: "data/Destination/local-storage"
+    backup:
+      interval: ""
+
+  - name: "nas1 ftp storage"
+    monitor_path: "data/Source/nas1-ftp-storage"
+    remote_path: "foldermonitor"
+    remote_profiles:
+      - "nas1-ftp"
+    backup:
+      interval: ""

@@ -1,6 +1,5 @@
 # rclone_handler.py
 import subprocess
-import os
 
 class RcloneHandler:
     def __init__(self, rclone_path="rclone"):

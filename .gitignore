@@ -4,6 +4,10 @@ __pycache__/
 *$py.class
 
 # Project-specific files
+config.yaml
+log.yaml
+FolderMonitor.spec
+
 # Ignore all files in the following directories
 bat
 bin
@@ -27,8 +31,6 @@ venv/
 ENV/
 
 # Configuration and Secrets
-# We ignore the actual test config so you don't leak paths/passwords
-tests/conf
 .env
 
 # Installer logs

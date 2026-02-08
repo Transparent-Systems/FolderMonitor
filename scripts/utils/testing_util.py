@@ -5,7 +5,8 @@ import sys
 from pathlib import Path
 
 """
-This script contains utility static methods and classes
+This script contains helper functions to create and delete test data
+It is used by other test scripts to create test data and delete test data 
 """
 
 
@@ -22,12 +23,12 @@ def create_test_data(path: str, files: list[str]) -> Path:
             parent_path = file_path.parent
             if not parent_path.exists():
                 parent_path.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
+        except Exception:
             sys.exit(1)
 
         try:
             file_path.write_text(f"Test data for {file_path.as_posix}\n")
-        except Exception as e:
+        except Exception:
             sys.exit(1)
 
     return file_path
@@ -111,7 +112,7 @@ def delete_test_data(path: str, files: list[str]) -> Path:
                     file_path.unlink()
                 else:
                     shutil.rmtree(path=file_path)
-        except Exception as e:
+        except Exception:
             continue
 
     return file_path
@@ -156,7 +157,7 @@ class ProcessTestResult:
         else:
             self.failure_count += 1
 
-        result_output_list = [str]
+        result_output_list : [str] = []
 
         if isinstance(test_output, str):
             result_output_list.append(test_output)

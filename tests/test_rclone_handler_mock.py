@@ -1,7 +1,5 @@
 # tests/test_rclone_handler_mock.py
 import unittest
-import os
-import sys
 from unittest.mock import patch, MagicMock
 import unittest.mock  # Import for clarity if you want to check type
 import subprocess

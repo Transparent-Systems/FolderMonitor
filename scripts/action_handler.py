@@ -5,6 +5,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, List
+from scripts.base_handler import BaseHandler
 from scripts.rclone_handler import RcloneHandler
 
 @dataclass
@@ -30,12 +31,14 @@ class DebounceManager:
     """
     Manages delayed execution of events to prevent duplicates (debouncing)
     and handle file stability waiting.
+    An event is handled if:
+    - The deadline is passed
+    - Or the caller cancels the event and processes the event themselves.
     """
-    def __init__(self, callback, logger: logging.Logger, delay: float = 2.0, check_interval: float = 0.5):
+    def __init__(self, callback, logger: logging.Logger, delay: float = 2.0):
         self.callback = callback
         self.logger = logger
         self.delay = delay
-        self.check_interval = check_interval
         self.pending_files = {}  # Dict[str, float] -> {file_path: execute_timestamp}
         self.lock = threading.Lock()
         self.running = False
@@ -54,19 +57,26 @@ class DebounceManager:
         self.logger.info("DebounceManager stopped.")
 
     def add_event(self, file_path: str):
-        """Adds or updates a file event with a new delay deadline."""
+        """
+        Adds a new file event with a delay deadline.
+        Or updates an existing file event with a new delay deadline.
+        """
         with self.lock:
             self.pending_files[file_path] = time.time() + self.delay
 
     def cancel_event(self, file_path: str):
-        """Cancels a pending event for the given file path."""
+        """
+        Cancels a pending event for the given file path.
+        """
         with self.lock:
             if file_path in self.pending_files:
                 del self.pending_files[file_path]
 
     def _worker(self):
         while self.running:
-            time.sleep(self.check_interval)
+            # Make worker wait time proportional to the delay.
+            # The delay is updated when add_event is called
+            time.sleep(self.delay / 10.0)
             now = time.time()
             triggered_files = []
             
@@ -85,13 +95,109 @@ class DebounceManager:
                     self.callback(path)
                 except Exception as e:
                     self.logger.error(f"Error in DebounceManager callback for {path}: {e}")
+            
 
+
+class BaseActionHandler(ActionHandler):
+    """
+    Action handler that executes commands for any class that extends BaseHandler.
+    """
+    def __init__(self, base_handler: BaseHandler, logger: logging.Logger = None, debounce_delay: float = 1.0):
+        """
+        Docstring for __init__
+        
+        :param self: Instance of this class
+        :param base_handler: An instance of a class that extends an abstract BaseHandler class, for example S3Handler or RcloneHandler.
+            The purpose of this calls is to avoid code duplication. We now do not need an individual class for every type of remote handler.
+        :type base_handler: BaseHandler
+        :param logger: Logger
+        :type logger: logging.Logger
+        :param debounce_delay: The bounce delay
+        :type debounce_delay: float
+        """
+        self.base_handler = base_handler
+        self.logger = logger or logging.getLogger(__name__)
+        self.debounce_manager = DebounceManager(self._execute_copy, self.logger, delay=debounce_delay)
+        self.debounce_manager.start()
+
+    def stop(self):
+        self.debounce_manager.stop()
+
+    def handle_action(self, context: ActionContext):
+        try:
+            if context.action_type == "created":
+                self._handle_created(context)
+            elif context.action_type == "deleted":
+                self._handle_deleted(context)
+            elif context.action_type == "modified":
+                self._handle_modified(context)
+            elif context.action_type == "moved":
+                self._handle_moved(context)
+            elif context.action_type == "closed":
+                self._handle_closed(context)
+        except Exception as e:
+            self.logger.error(f"Error handling rclone action {context.action_type} for {context.src_path}: {e}")
+
+    def _execute_copy(self, src_path: str):
+        """
+        Executes the copy operation. Used by both DebounceManager and immediate calls.
+        """
+        return_code, output = self.base_handler.copy_file(source_path=src_path)
+        if return_code != 0:
+            self.logger.warning(f"Copy failed for {src_path}. Code: {return_code}")
+
+    def _handle_created(self, context: ActionContext):
+        # In the original code, created for files was postponed to modified/closed.
+        # But for directories it logged.
+        pass
+
+    def _handle_deleted(self, context: ActionContext):
+        # Cancel any pending debounce for this file
+        self.debounce_manager.cancel_event(context.src_path)
+
+        remote_path = self.base_handler.get_remote_path(context.src_path)
+        
+        if context.is_directory:
+             # watchdog typically doesn't send DirDeletedEvent but if it did:
+            self.base_handler.delete_folder(remote_path=remote_path)
+        else:
+            self.base_handler.delete_file(remote_path=remote_path)
+
+    def _handle_modified(self, context: ActionContext):
+        if context.is_directory:
+            return
+
+        # Instead of copying immediately, add to debounce manager
+        self.debounce_manager.add_event(context.src_path)
+
+    def _handle_closed(self, context: ActionContext):
+        if context.is_directory:
+            return
+            
+        # Cancel pending debounce as we will process it now
+        self.debounce_manager.cancel_event(context.src_path)
+
+        # Execute copy immediately
+        self._execute_copy(context.src_path)
+
+    def _handle_moved(self, context: ActionContext):
+        # Cancel pending debounce for the old path
+        self.debounce_manager.cancel_event(context.src_path)
+
+        if context.is_directory:
+            dest_old = self.base_handler.get_remote_path(context.src_path)
+            self.base_handler.delete_folder(remote_path=dest_old)
+            self.base_handler.copy_folder(source_path=context.dest_path)
+        else:
+            dest_old = self.base_handler.get_remote_path(context.src_path)
+            self.base_handler.delete_file(remote_path=dest_old)
+            self.base_handler.copy_file(source_path=context.dest_path)
 
 class RcloneActionHandler(ActionHandler):
     """
     Action handler that executes rclone commands.
     """
-    def __init__(self, rclone_handler: RcloneHandler, logger: logging.Logger = None, debounce_delay: float = 2.0):
+    def __init__(self, rclone_handler: RcloneHandler, logger: logging.Logger = None, debounce_delay: float = 1.0):
         self.rclone_handler = rclone_handler
         self.logger = logger or logging.getLogger(__name__)
         self.debounce_manager = DebounceManager(self._execute_copy, self.logger, delay=debounce_delay)
@@ -132,13 +238,13 @@ class RcloneActionHandler(ActionHandler):
         # Cancel any pending debounce for this file
         self.debounce_manager.cancel_event(context.src_path)
 
-        destination_path = self.rclone_handler.get_destination_path(context.src_path)
+        remote_path = self.rclone_handler.get_remote_path(context.src_path)
         
         if context.is_directory:
              # watchdog typically doesn't send DirDeletedEvent but if it did:
-            self.rclone_handler.delete_folder(destination_path=destination_path)
+            self.rclone_handler.delete_folder(remote_path=remote_path)
         else:
-            self.rclone_handler.delete_file(destination_path=destination_path)
+            self.rclone_handler.delete_file(remote_path=remote_path)
 
     def _handle_modified(self, context: ActionContext):
         if context.is_directory:
@@ -162,12 +268,12 @@ class RcloneActionHandler(ActionHandler):
         self.debounce_manager.cancel_event(context.src_path)
 
         if context.is_directory:
-            dest_old = self.rclone_handler.get_destination_path(context.src_path)
-            self.rclone_handler.delete_folder(destination_path=dest_old)
+            dest_old = self.rclone_handler.get_remote_path(context.src_path)
+            self.rclone_handler.delete_folder(remote_path=dest_old)
             self.rclone_handler.copy_folder(source_path=context.dest_path)
         else:
-            dest_old = self.rclone_handler.get_destination_path(context.src_path)
-            self.rclone_handler.delete_file(destination_path=dest_old)
+            dest_old = self.rclone_handler.get_remote_path(context.src_path)
+            self.rclone_handler.delete_file(remote_path=dest_old)
             self.rclone_handler.copy_file(source_path=context.dest_path)
 
 

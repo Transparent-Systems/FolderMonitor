@@ -1,6 +1,5 @@
 import logging
 import uuid
-import logging
 
 """
 Version: v1.0

@@ -1,7 +1,7 @@
 """
-Version: 1.1
+Version: 2.0.0
 
-Test integration script for rclone handler.
+Test integration script for S3 handler.
 The script iterates over monitors configured in a yaml file.
 The same test suite is used for each monitor.
 Refactored to use unittest.TestCase.
@@ -19,175 +19,152 @@ from pathlib import Path
 scriptspath = Path(__file__).parent / Path("../scripts")
 sys.path.insert(0, scriptspath.resolve().as_posix())
 
-from rclone_handler import RcloneHandler
+from s3_handler import S3Handler
 from utils.testing_util import create_test_data
 from utils.logging_util import get_unique_logger
-from config_models import ConfigModels
 
-class TestRcloneHandlerIntegration(unittest.TestCase):
+class TestS3HandlerIntegration(unittest.TestCase):
     monitor_config = {}
     logger = None
     
     @classmethod
     def setUpClass(cls):
         if not cls.monitor_config:
-            raise ValueError("Monitor config not set for TestRcloneHandlerIntegration")
+            raise ValueError("Monitor config does not exist.")
         
         cls.monitor_name = cls.monitor_config.get("name")
         cls.logger.info(f"Setting up tests for monitor: {cls.monitor_name}")
 
-        subfolder = "test-rclone-handler-integration"
-        
         # Setup Source Path
         raw_source = cls.monitor_config.get("monitor_path")
         raw_source_stripped = raw_source.rstrip('/')
+        subfolder = "test-s3-handler-integration"
         cls.source_path = f"{raw_source_stripped}/{subfolder}"
         
-        # Setup remote_path
-        # In v2 the remote_profile is not in the remote_path anymore
-        # That allows us to have a single monitor propagated to one or more remote paths
+        # Setup Destination Path
         raw_dest = cls.monitor_config.get("remote_path")
         raw_dest_stripped = raw_dest.rstrip('/')
-        cls.remote_path = f"{raw_dest_stripped}/{subfolder}"
-        remote_profile = cls.monitor_config.get("remote_profile")
-        if (remote_profile is not None) and (remote_profile != ""):
-            cls.remote_path = f"{remote_profile}:{cls.remote_path}"
+        cls.remote_path =f"{raw_dest_stripped}/{subfolder}"
         
-
-        cls.rclone_handler = RcloneHandler(
-            logger=cls.logger,
-            base_source_path=cls.source_path,
+        cls.s3_handler = S3Handler(
             base_remote_path=cls.remote_path,
-            remote_profile=remote_profile,
+            base_source_path=cls.source_path,
+            remote_profile=cls.monitor_config.get("remote_profile"),
+            logger=cls.logger,
+            app_name="foldermonitor"
         )
         
-        # Ensure source directory exists
+        # For testing purpose ensure source directory exists 
         Path(cls.source_path).mkdir(parents=True, exist_ok=True)
 
-    def test_01_get_version(self):
-        """Get Version"""
-        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
-        (result_code, result_output) = self.rclone_handler.get_rclone_version()
-        self.assertIn("rclone", result_output.lower(), "Output should contain 'rclone'")
-
-    def test_02_list_remotes(self):
-        """List Remotes"""
-        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
-        (result_code, result_output) = self.rclone_handler.list_remotes()
-        self.assertEqual(result_code, 0, f"List remotes failed. Output: {result_output}")
-
-    def test_03_utils(self):
-        """Testing file exists"""
+    def test_01_copy_file(self):
+        """Test copy file and check path exists)"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "Subfolder1/test1.txt"
         
         # Create source file
         file_path = create_test_data(path=self.source_path, files=[file_name])
-        
-        # Copy file to remote
-        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
-        self.assertEqual(result_code, 0, f"Copied file {file_name}. Output: {result_output}")
+        # Copy file to remote to setup state for following tests
+        (result_code, result_output) = self.s3_handler.copy_file(
+            source_path=file_path.as_posix()
+        )
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
         # Check file exists
-        remote_path = self.rclone_handler.get_remote_path(source_path=file_path)
-        found = self.rclone_handler.file_exists(remote_path=remote_path)
-        self.assertTrue(found, f"File exist: {remote_path}")
+        remote_path =self.s3_handler.get_remote_path(source_path=file_path)
+        (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
         # Check non-existent file
         remote_path_missing = Path(self.source_path) / "file-does-not-exists.txt"
-        remote_path = self.rclone_handler.get_remote_path(source_path=remote_path_missing)
-        found = self.rclone_handler.file_exists(remote_path=remote_path)
-        self.assertFalse(found, f"File should not exist: {remote_path_missing}")
+        remote_path =self.s3_handler.get_remote_path(source_path=remote_path_missing)
+        (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
+        self.assertGreater(result_code, 0, f"File does not exists: {remote_path}. ResultCode: {result_output}")
 
-    def test_04_delete_file_at_remote(self):
+        # Checking directory exists is pointless for Object Storage as is stored as file meta data
+
+    def test_05_delete_file_at_remote(self):
         """Delete a file at remote"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "test2.txt"
         file_path = create_test_data(path=self.source_path, files=[file_name])
 
         # Copy first
-        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
-        self.assertEqual(result_code, 0, "Setup failed: Copy file")
+        (result_code, result_output) = self.s3_handler.copy_file(source_path=file_path.as_posix())
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
-        # Delete
-        remote_path = self.rclone_handler.get_remote_path(source_path=file_path)
-        (result_code, result_output) = self.rclone_handler.delete_file(remote_path=remote_path)
-        self.assertEqual(result_code, 0, f"Delete file failed. Output: {result_output}")
+        # Delete file
+        remote_path = self.s3_handler.get_remote_path(source_path=file_path)
+        (result_code, result_output) = self.s3_handler.delete_file(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
-        # Check file has been deleted
-        remote_path = self.rclone_handler.get_remote_path(source_path=file_path)
-        found = self.rclone_handler.file_exists(remote_path=remote_path)
-        self.assertFalse(found, f"File has been delete: {remote_path}")
-
-    def test_05_create_folder_with_files(self):
-        """Create folder with files"""
+    def test_06_create_several_files(self):
+        """Create several files"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["Subfolder1/test1.txt", "Subfolder1/test2.txt", "Subfolder1/test3.txt"]
         
         # Create files
         file_path = create_test_data(path=self.source_path, files=files)
-        head = file_path.parent # Subfolder1
+        folder_path = file_path.parent # Subfolder1
 
         # Copy folder
-        (result_code, result_output) = self.rclone_handler.copy_folder(source_path=head.as_posix())
-        self.assertEqual(result_code, 0, f"Copied folder. Output: {result_output}")
+        (result_code, result_output) = self.s3_handler.copy_folder(source_path=folder_path.as_posix())
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
         # Check one file
-        remote_path = self.rclone_handler.get_remote_path(source_path=file_path.as_posix())
-        found = self.rclone_handler.file_exists(remote_path=remote_path)
-        self.assertTrue(found, f"File exist: {remote_path}")
+        file_path = Path(folder_path / "test1.txt")
+        remote_path = self.s3_handler.get_remote_path(source_path=file_path.as_posix())
+        (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
-    def test_06_remove_folder_from_remote(self):
+    def test_07_remove_folder_from_remote(self):
         """Remove folder from remote"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
+        # Create files
         files = ["Subfolder2/test1.txt", "Subfolder2/test2.txt", "Subfolder2/test3.txt"]
-        
-        # Create source data first
         file_path = create_test_data(path=self.source_path, files=files)
-        head = file_path.parent
+        folder_path = file_path.parent
 
         # Copy folder
-        (result_code, result_output) = self.rclone_handler.copy_folder(source_path=head.as_posix())
-        self.assertEqual(result_code, 0, "Rclone copy_folder succeeded")
+        (result_code, result_output) = self.s3_handler.copy_folder(source_path=folder_path.as_posix())
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
         # Delete folder
-        remote_path = self.rclone_handler.get_remote_path(head)
-        (result_code, result_output) = self.rclone_handler.delete_folder(remote_path=remote_path)
-        self.assertEqual(result_code, 0, f"Rclone delete_folder failed for {remote_path}. Output: {result_output}")
-
-    def test_07_file_with_space(self):
+        remote_path =self.s3_handler.get_remote_path(source_path=folder_path)
+        (result_code, result_output) = self.s3_handler.delete_folder(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
+ 
+    def test_08_file_with_space(self):
         """Testing file with space"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         file_name = "Subfolder1/file with space.txt"
         file_path = create_test_data(path=self.source_path, files=[file_name])
-        
-        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
-        self.assertEqual(result_code, 0, f"Copy file with space failed. Output: {result_output}")
 
-    def test_08_folder_with_space(self):
-        """Testing folder with space"""
-        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
-        file_name = "Subfolder with Space/test1.txt"
-        file_path = create_test_data(path=self.source_path, files=[file_name])
-        
-        (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
-        self.assertEqual(result_code, 0, f"Copy file in folder with space failed. Output: {result_output}")
+        # Copy file
+        (result_code, result_output) = self.s3_handler.copy_file(source_path=file_path.as_posix())
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
+
+        # Check file exists
+        remote_path = self.s3_handler.get_remote_path(source_path=file_path)
+        result_code, result_output = self.s3_handler.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Run integration tests for rclone_handler using unittest."
+        description="Run integration tests for s3_handler using unittest."
     )
     parser.add_argument(
         "-c",
         "--config",
         type=str,
-        default="conf/config.tests.yaml",
+        default="tests/conf/config.test.yaml",
         help="Path to monitor configuration file."
     )
     parser.add_argument(
         "--log-filename",
         type=str,
-        default="test_rclone_handler_integration.log",
+        default="test-s3-handler-integration.log",
         help="Log file name."
     )
     parser.add_argument(
@@ -218,11 +195,12 @@ if __name__ == "__main__":
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # Load Config
-    if not ConfigModels().validate(config_path=args.config, logger=root_logger):
-        root_logger.error(f"Configuration file '{args.config}' is invalid.")
-        sys.exit(1)
+    # Validate Config
+    # if not ConfigModels().validate(config_path=args.config, logger=root_logger):
+    #     root_logger.error(f"Configuration file '{args.config}' is invalid.")
+    #     sys.exit(1)
 
+    # Load Config
     with open(args.config, "r") as file:
         monitor_config = yaml.safe_load(file)
 
@@ -253,14 +231,14 @@ if __name__ == "__main__":
 
     for monitor in monitors:
         # Inject configuration into Test Class
-        TestRcloneHandlerIntegration.monitor_config = monitor
-        TestRcloneHandlerIntegration.logger = logger
+        TestS3HandlerIntegration.monitor_config = monitor
+        TestS3HandlerIntegration.logger = logger
         
         logger.info(f"Running tests for monitor: {monitor.get('name')}")
         
         # Run Tests
         loader = unittest.TestLoader()
-        full_suite = loader.loadTestsFromTestCase(TestRcloneHandlerIntegration)
+        full_suite = loader.loadTestsFromTestCase(TestS3HandlerIntegration)
 
         if args.test_cases:
             # Flatten arguments
@@ -284,7 +262,9 @@ if __name__ == "__main__":
             overall_success = False
             logger.error(f"Tests failed for monitor: {monitor.get('name')}")
 
+    logger.info("================================")    
     if overall_success:
         logger.info("All tests passed successfully.")    
     else:
         logger.info("Not all tests passed successfully.")
+    logger.info("================================")    

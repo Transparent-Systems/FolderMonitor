@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.0.0] - 2026-02-10
+
+- Added Python S3Handler.  
+    The S3Handler is a native Python handler that handles requests to S3 storage providers.  
+    Having a native S3 handler eliminates the need for Rclone for S3 compatible cloud storage providers, like:
+    - Amazon S3
+    - Cloudflare R2
+    - Idrive E2
+    - Backblaze B2
+    - Alibaba Cloud OSS
+
+- Added CommandProcessor
+    The Command Processor handles commands like verson, test, profile, config and their subcommands and parameters
+- Added remote_profiles to YAML configuration
+    This allows a monitor to be propagates to one or more cloud providers at the same time.  
+    This adds fault tolerance to a monitor in case a connection to one of the cloud providers is lost.  
+- Removed remote_profile from YAML configuration
+- Removed testing configuration from YAML example as testing configuration is for development purposes only
+
 ## [1.3.0] - 2026-02-01
 
 Removed mode from backup configuration.

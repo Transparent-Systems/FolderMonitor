@@ -17,9 +17,6 @@ import yaml
 from scripts.utils.logging_util import (
     get_unique_logger,
 )
-from scripts.utils.testing_util import (
-    ProcessTestResult,
-)
 
 
 if __name__ == "__main__":
@@ -65,16 +62,16 @@ if __name__ == "__main__":
         sys.exit(1)
 
     LOG_FILE = log_config.get("log_filename", "folder_monitor.log")
-    LOG_FOLDER = log_config.get("log_folder", "logs")
+    LOG_FOLDER = log_config.get("folder", "logs")
     MAX_BYTES = log_config.get("max_bytes", 10 * 1024 * 1024)  # Default to 10 MB
     BACKUP_COUNT = log_config.get("backup_count", 5)  # Default to
 
     rotating_log_file = Path(LOG_FOLDER) / Path("create_monitor_paths.log")
     # Create log folder if it does not exists
-    log_folder_path = Path(LOG_FOLDER)
+    folder_path = Path(LOG_FOLDER)
     try:
-        if not log_folder_path.exists():
-            log_folder_path.mkdir(parents=True)
+        if not folder_path.exists():
+            folder_path.mkdir(parents=True)
     except OSError as e:
         print(f"Error creating log folder {LOG_FOLDER}: {e}")
         sys.exit(1)
@@ -97,10 +94,6 @@ if __name__ == "__main__":
     for monitor in monitors:
         logger.debug(f"Checking monitor path for monitor: [{monitor['name']}]")
 
-        if not monitor.get("enabled"):
-            logger.debug(f"Monitor {monitor['name']} is disabled. Skipping...")
-            continue
-
         # Create monitor_path if not exists
         monitor_path = Path(monitor.get("monitor_path"))
         logger.info(f"Checking monitor path [{monitor_path}]")
@@ -108,4 +101,4 @@ if __name__ == "__main__":
             monitor_path.mkdir(parents=True)
             logger.info(f"Created monitor path {monitor_path}")
 
-    logger.info(f"===> Ready creating monitor paths, if not exists <===")
+    logger.info("===> Ready creating monitor paths, if not exists <===")

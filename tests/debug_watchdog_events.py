@@ -1,8 +1,7 @@
 import time
-import sys
 import os
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileClosedEvent
+from watchdog.events import FileSystemEventHandler
 
 class DebugHandler(FileSystemEventHandler):
     def on_any_event(self, event):
@@ -39,5 +38,6 @@ if __name__ == "__main__":
         try:
             os.remove(file_path)
             os.rmdir(path)
-        except:
-            pass
+        except OSError as e:
+            print(f"Error: {e.filename} - {e.strerror}.")
+

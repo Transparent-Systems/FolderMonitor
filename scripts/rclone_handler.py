@@ -24,87 +24,80 @@ Usage:
 - The class is designed to be used in conjunction with a folder monitoring script.
 """
 
-import json
 import logging
 import subprocess
 import shlex
 import sys
-import os
 import shutil
 from pathlib import Path
-
-_rclone_path = shutil.which("rclone")
-_is_windows = sys.platform.startswith('win')
-
-if not _rclone_path:
-    print("rclone executable not found in the system's PATH.")
-    sys.exit(1)
+try:
+    from scripts.base_handler import BaseHandler
+except ModuleNotFoundError:
+    from base_handler import BaseHandler
 
 
-class RcloneHandler:
+class RcloneHandler(BaseHandler):
     """
     A class to copy or delete files and folders using rclone.
     The class has been tested with Python >= 3.10 and rclone v1.64.2.
-    Rclone handler copy, delete and sync oprations always use the same root source_path and root destination_path.
+    Rclone handler copy, delete and sync operations always use the same root source_path and root remote_path.
     """
 
-    _rclone_config_json = None
+    rclone_path = None
+    is_windows = sys.platform.startswith('win')
 
     @classmethod
-    def _load_rclone_config(cls, logger: logging.Logger) -> dict:
-        """A class method to handle the loading of the rclone configuration."""
-        if cls._rclone_config_json is None:
-            print("Loading rclone config...")
+    def get_rclone_path(cls, logger: logging.Logger) -> str:
+        if RcloneHandler.rclone_path:
+            return RcloneHandler.rclone_path
+        
+        RcloneHandler.rclone_path = shutil.which("rclone")
+        if RcloneHandler.rclone_path is None:
+            logger.error("rclone executable not found in the system's PATH.") 
+            return RcloneHandler.rclone_path
 
-            try:
-                rclone_command = [_rclone_path, "config", "dump"]
-                logger.debug(f"Running command: {' '.join(rclone_command)}")
-                result_process = subprocess.run(
-                    rclone_command, capture_output=True, text=True, check=True
-                )
-                # Check if the command was successful
-
-                if result_process.returncode == 00:
-                    config_data = result_process.stdout.strip()
-                else:
-                    config_data = {}
-            except subprocess.CalledProcessError as e:
-                logger.error(e.stderr)
-                logger.error("Error: rclone config not found.")
-                config_data = {}
-
-            json_output = json.loads(config_data)
-            cls._rclone_config_json = json_output
-
-        return cls._rclone_config_json
+        # Convert RcloneHandler.rclone_path to posix string
+        RcloneHandler.rclone_path = str(Path(RcloneHandler.rclone_path).as_posix())
+        return RcloneHandler.rclone_path
 
     def __init__(
         self,
-        base_destination_path: str,
-        base_source_path: str,
         logger: logging.Logger,
-        rclone_flags: str,
+        base_source_path: str,
+        base_remote_path: str,
+        remote_profile: str
     ):
         """
-        destination_path    : base destination path
-        source_path         : base source path
-        logger              : logger instance
-        rclone_flags        : comma delimited string of rclone flags
-        """
+        Docstring for __init__
+        
+        :param self: Instance of this class
+        :param logger: logger instance
+        :type logger: logging.Logger
+        :param base_source_path: Source path to copy from
+        :type base_source_path: str
+        :param base_remote_path: remote path to copy to. This path is without the profile name commonly used in rclone.
+        :type base_remote_path: str
+        :remote_profile: The profile name commonly used in rclone: remote_profile:remote__path
+        :remote_profile: str
+        """    
         self.logger = logger
-        self.base_destination_path = Path(base_destination_path)
-        self.base_source_path = Path(base_source_path)
-        self.rclone_flags = rclone_flags
-        # Call class method to get rclone config in json format
-        self.rclone_config = self._load_rclone_config(logger)
-        # Derive backend name from base_destination_path
-        backend_name = base_destination_path.split(":")[0]
-        backend_config = self.rclone_config.get(backend_name)
-        # store type as instance variable
-        if backend_config is None:
-            self.backend_type = None
+
+        # Get rclone_path
+        self.rclone_path = RcloneHandler.get_rclone_path(logger=logger)
+
+        if (remote_profile is None):
+            self.remote_profile = ""
         else:
-            self.backend_type = backend_config.get("type")
+            self.remote_profile = remote_profile
+
+        if self.remote_profile != "":
+            # Check if remote_path is in the conventinal rclone format with remote_profile prefix (remote_profile:)
+            remote_path_str = str(Path(base_remote_path).as_posix())
+            if not remote_path_str.startswith(remote_profile + ":"):
+                base_remote_path = remote_profile + ":" + base_remote_path
+
+        self.base_remote_path = Path(base_remote_path)
+        self.base_source_path = Path(base_source_path)
 
         return
 
@@ -118,11 +111,15 @@ class RcloneHandler:
         Param additional_args_str: a string with arguments
         """
 
+        if self.rclone_path is None:
+            self.logger.error("rclone executable not found in the system's PATH.")
+            return (1, "rclone executable not found in the system's PATH.")
+
         # Parse Additional Arguments Safely
         try:
             # posix=True (default) treats backslash '\' as an escape character.
             # posix=False treats '\' as a normal character (better for Windows paths).
-            extra_args_list = shlex.split(additional_args_str, posix=not _is_windows)
+            extra_args_list = shlex.split(additional_args_str, posix=not RcloneHandler.is_windows)
         except ValueError as e:
             self.logger.error(f"Error parsing arguments: {e}")
             return None
@@ -130,7 +127,7 @@ class RcloneHandler:
 
         # Add rclone executable
         rclone_command = rclone_parms.copy()
-        rclone_command.insert(0, _rclone_path)
+        rclone_command.insert(0, RcloneHandler.rclone_path)
         # Add extra_args_list to rclone_command
         for _ in extra_args_list:
             rclone_command.append(_)
@@ -154,15 +151,15 @@ class RcloneHandler:
                 f"Error stderr: {e.stderr}"  )
             return (e.returncode, e.stderr)
 
-    def get_destination_path(self, path: str) -> str:
+    def get_remote_path(self, source_path: str) -> str:
         """
-        Derives path relative to source_path and suffixes it to destination path
+        Derives remote path from base source path and this source_path
         """
 
-        source_path_obj = Path(path)
+        source_path_obj = Path(source_path)
         relative_path = source_path_obj.relative_to(self.base_source_path)
-        destination_path = self.base_destination_path / relative_path
-        return destination_path.as_posix()
+        remote_path = self.base_remote_path / relative_path
+        return remote_path.as_posix()
 
     def get_rclone_version(self):
         return self.run_command(["--version"])
@@ -173,18 +170,42 @@ class RcloneHandler:
         """
         return self.run_command(["listremotes"])
 
-    def copy_file(self, source_path) -> tuple[int, list[str]]:
+    def file_exists(self, remote_path: str) -> tuple[int, str]:
         """
-        Copy source_path to the derived destination path
+        Docstring for file_exists
+        
+        :param self: Instance of this class
+        :param remote_path: Remote path to check for existence
+        :type remote_path: str
         """
-
-        destination_path = self.get_destination_path(path=source_path)
-        # copyto can fail if the file has been deleted at the destination on a versioned file system
-        # The --s3-no-check-bucket flag handles the use case where the user has no CreateBucket permissions
-        # rclone_command = ["copyto", "--transfers", "16", "--s3-no-check-bucket", source_path, destination_path]
-
         (return_value, result_output) = self.run_command(
-            ["copyto", source_path, destination_path], self.rclone_flags
+            ["ls", remote_path]
+            )
+
+        if return_value == 0:
+            # Check if result_output is empty
+            if (result_output == ""):
+                return (0, "")
+            else:
+                return (1, result_output)
+        else:
+            return (1, result_output)
+
+
+    def copy_file(self, source_path, remote_path=None) -> tuple[int, list[str]]:
+        """
+        Copy source_path to remote_path.
+        If remote_path is None, the remote_path is derived from the source_path
+        Returns:
+            (result_code, result_output)
+        """
+
+        if remote_path is None:
+            remote_path = self.get_remote_path(source_path=source_path)
+
+        # copyto can fail if the file has been deleted at the destination on a versioned file system
+        (return_value, result_output) = self.run_command(
+            ["copyto", source_path, remote_path]
         )
 
         if return_value == 0:
@@ -198,7 +219,7 @@ class RcloneHandler:
                 source_path_obj = Path(source_path)
                 file_name = source_path_obj.name
                 source_folder = source_path_obj.parent
-                destination_folder = self.get_destination_path(path=str(source_folder))
+                destination_folder = self.get_remote_path(source_path=str(source_folder))
                 return self.run_command(
                     [
                         "copy",
@@ -206,8 +227,7 @@ class RcloneHandler:
                         destination_folder,
                         "--include",
                         file_name,
-                    ],
-                    self.rclone_flags,
+                    ]
                 )
             else:
                 # Log copy_file failed
@@ -219,40 +239,30 @@ class RcloneHandler:
         Copy the source path to the derived destination path
         """
 
-        destination_path = self.get_destination_path(path=source_path)
+        remote_path = self.get_remote_path(source_path=source_path)
 
         # Copy the folder contents
         # This will not delete files at the destination that are not present in the source
         return self.run_command(
-            ["copy", source_path, destination_path], self.rclone_flags
+            ["copy", source_path, remote_path]
         )
     
-    def delete_file(self, destination_path):
+    def delete_file(self, remote_path):
         """
-        Delete file at destination_path
+        Delete file at remote_path
         """
 
-        # We use rclone delete (instead of deletefile) as it also works when file does not exist on destination_path
+        # We use rclone delete (instead of deletefile) as it also works when file does not exist on remote_path
         # This could happen is DirDeleteEvent is triggered before FileDeleteEvent
         # Using rclone delete reduces noise in the log
-        return self.run_command(["delete", destination_path], self.rclone_flags)
+        return self.run_command(["delete", remote_path])
 
-    def delete_folder(self, destination_path):
+    def delete_folder(self, remote_path):
         """
-        Delete contents inside destination_path
+        Delete contents inside remote_path
         """
 
         return self.run_command(
-            ["delete", "--rmdirs", destination_path], self.rclone_flags
+            ["delete", "--rmdirs", remote_path]
         )
 
-    def purge_folder(self, destination_path):
-        """
-        Delete content and all file versions inside destination_path. 
-        Purge will also remove the folder at destination_path
-        Important: 
-            This method will remove all versions on a versioned storage backend.
-        """
-
-        return self.run_command(["purge", destination_path], self.rclone_flags)
-    

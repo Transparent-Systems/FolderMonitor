@@ -1,6 +1,6 @@
 """
 Script: folder_monitor.py
-Version: v1.2.0
+Version: v2.0.0
 Author: John Zoetebier
 Requirements:
     1) rclone v1.64.2 (https://rclone.org/downloads/)
@@ -20,21 +20,19 @@ import os
 from pathlib import Path
 import queue
 import sys
-import threading
 import time
 import yaml
 import argparse
 import logging
+import logging.handlers
 
 
 from version import __version__
 from scripts.config_models import ConfigModels
-from scripts.rclone_handler import RcloneHandler
 from scripts.monitor_handler import MonitorHandler
 from scripts.utils.logging_util import get_unique_logger
-from scripts.utils.generic_util import convert_to_seconds
-from scripts.utils.diagnostic_util import DiagnosticUtil
-
+from scripts.backup_handler import BackupHandler
+from scripts.command_processor import CommandProcessor
 
 def configure_pid_file(pid_file_path: str) -> bool:
     """
@@ -124,98 +122,11 @@ def parse_time_string(time_str, default_value=None):
         return default_value  # Handles unparseable strings
 
 
-# Perform backup
-def perform_backup(monitor_config, reason="scheduled"):
-    """
-    Perform a backup for the given monitor configuration.
-
-    Args:
-        monitor_config (dict): The monitor configuration dictionary.
-        reason (str): The reason for the backup (e.g., "one-off", "scheduled").
-    """
-
-    monitor_name = monitor_config["name"]
-    logger.debug(
-        f"Performing {reason} backup for monitor [{monitor_name}] at {time.ctime()} for: {monitor_config['monitor_path']} -> {monitor_config['destination_path']}"
-    )
-    # Use rclone_handler for backup operations
-    # Check if mode is copy or sync
-    destination_path = monitor_config.get("destination_path")
-    monitor_path = monitor_config.get("monitor_path")
-    rclone_flags = monitor_config.get("rclone_flags", "")
-    rclone_handler = RcloneHandler(destination_path, monitor_path, logger, rclone_flags)
-
-    logger.debug(
-        f"Copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
-    )
-    rclone_handler.copy_folder(source_path=monitor_config["monitor_path"])
-    logger.debug(
-        f"Ready copying folder for monitor [{monitor_name}] from {monitor_config['monitor_path']} to {destination_path}"
-    )
-
-    rclone_handler = None  # Clean up the rclone handler
-
-
-# This is the function that each thread will execute
-def monitor_backup_task(monitor_config):
-    """
-    Executes backup operations for a given monitor configuration.
-
-    This function handles both one-off and recurring backups based on the
-    'interval' setting in the monitor's backup configuration.
-
-    Args:
-        monitor_config (dict): The configuration dictionary for a single monitor.
-    """
-    monitor_name = monitor_config["name"]
-    backup_config = monitor_config.get("backup", {})
-    if not backup_config:
-        logger.debug(f"No backup configuration found for '{monitor_name}'")
-        return  # Exit if no backup configuration is present
-
-    if backup_config.get("enabled", True) is False:
-        logger.debug(
-            f"Backup for monitor '{monitor_name}' is disabled. Skipping backup task."
-        )
-        return  # Exit if backup is explicitly disabled
-
-    raw_interval = backup_config.get("interval", "0")  # Default to "0" if not specified
-    interval_seconds = convert_to_seconds(raw_interval)
-    logger.debug(
-        f"[{monitor_name}] Backup interval is {interval_seconds} seconds"
-        )
-
-    if interval_seconds == 0:
-        logger.debug(
-            f"[{monitor_name}] Backup interval is 0. Performing one-off backup."
-        )
-        perform_backup(monitor_config, reason="one-off (interval 0)")
-        return  # Exit the thread after one-off backup
-    else:
-        logger.debug(
-            f"[{monitor_name}] Backup interval is > 0. Performing initial backup."
-        )
-        perform_backup(monitor_config, reason="initital backup (interval > 0)")
-
-    logger.debug(f"[{monitor_name}] Backup scheduled every {interval_seconds} seconds.")
-    # This loop will run indefinitely for recurring backups
-    while True:
-        perform_backup(monitor_config, reason="scheduled")
-        time.sleep(interval_seconds)
-
-
 if __name__ == "__main__":
-    # Use the string for logging and display
-    print(f"Starting FolderMonitor v{__version__}")
     parser = argparse.ArgumentParser(
         description="This script monitors changes on files and subfolders in the monitor folder."
     )
-    # 1. A Flag (Boolean): Doesn't require a value. If present, it's True.
-    parser.add_argument(
-        "-t", "--test-mode", 
-        action="store_true", 
-        help="Run environment and configuration checks, then exit."
-    )
+    # Argument for location of the configuration file
     parser.add_argument(
         "-c", "--config", 
         type=str, 
@@ -223,36 +134,97 @@ if __name__ == "__main__":
         metavar="<PATH>", 
         help="Path to the configuration file"
     )
+
+    # Argument for location of the log file
+    parser.add_argument(
+        "-l", "--log", 
+        type=str, 
+        default="conf/log.yaml",
+        metavar="<PATH>", 
+        help="Path to the log file"
+    )
+
+    # Add subcommands
+    subparsers = parser.add_subparsers(dest="command", help="Commands")
+
+    # Version command
+    subparsers.add_parser("version", help="Show version")
+    # Test command
+    test_parser = subparsers.add_parser("test", help="Run environment and configuration checks")
+    test_parser.add_argument("-c", "--config", 
+        type=str, 
+        default="conf/config.yaml",
+        metavar="<PATH>", 
+        help="Path to the configuration file"
+    )
+
+    # Profile command
+    profile_parser = subparsers.add_parser("profile", help="Manage profiles (subcommands: show, new, ... ; enter 'profile -h' for help)")
+    profile_subparsers = profile_parser.add_subparsers(dest="profile_subcommand", help="Profile subcommands", required=True)
+    
+    # Profile subcommands
+    profile_subparsers.add_parser("show", help="Show all profiles")
+    profile_subparsers.add_parser("file", help="Show the file location of foldermonitor.conf")
+    profile_subparsers.add_parser("import", help="Import all s3 profiles from rclone")
+    profile_subparsers.add_parser("new", help="Create a new profile")
+    profile_subparsers.add_parser("edit", help="Edit a profile")
+    profile_subparsers.add_parser("delete", help="Delete a profile")
+    profile_test_parser = profile_subparsers.add_parser("test", help="Test a profile")
+    profile_test_parser.add_argument("-p", "--profile-name",
+        type=str, 
+        metavar="<NAME>", 
+        help="Profile name of remote profile to test"
+        )
+
+    config_parser = subparsers.add_parser("config", help="Manage YAML configuration (subcommands: show, file, ... ; enter 'config -h' for help)")
+    config_subparsers = config_parser.add_subparsers(dest="config_subcommand", help="Config subcommands", required=True)
+    config_file_parser = config_subparsers.add_parser("file", help="Show location configuration file")
+    config_file_parser.add_argument("-c", "--config", 
+        type=str, 
+        default="conf/config.yaml",
+        metavar="<PATH>", 
+        help="Path to the configuration file"
+    )
+    config_show_parser = config_subparsers.add_parser("show", help="Show monitor configurations")
+    config_show_parser.add_argument("-c", "--config", 
+        type=str, 
+        default="conf/config.yaml",
+        metavar="<PATH>", 
+        help="Path to the configuration file"
+    )
+
     args = parser.parse_args()
 
-    # If we are running in test_mode then run the diagnostic tests only
-    if args.test_mode:
-        diagnostic_util = DiagnosticUtil()
-        if (not diagnostic_util.check_env(
-            config_path=args.config
-            )):
-            sys.exit(1)
+    # If log file does not exists, then we create one
+    if (not os.path.exists(args.log)):
+        print(f"Log configuration file '{args.log}' does not exist.")
+        print(f"Creating new log configuration file '{args.log}'")
+        with open(args.log, "w") as file:
+            # Write version and logging configuration only
+            file.write(f"version: {__version__[0]}.{__version__[1]}.{__version__[2]}\n")
+            file.write("logging:\n")
+            file.write("  file_name: folder_monitor.log\n")
+            file.write("  folder: logs\n")
+            file.write("  max_bytes: 10485760\n")
+            file.write("  max_backup_count: 5\n")
+            file.write("  # log_level: DEBUG | INFO | WARNING | ERROR | CRITICAL\n")
+            file.write("  log_level: INFO\n")
+            file.write("")
 
-        diagnostic_util.check_config(
-            config_path=args.config
-            )
-        diagnostic_util.print_overview()
-        sys.exit()
+    # Load log configuration
+    with open(args.log, "r") as file:
+        log_config = yaml.safe_load(file)
 
-    # Load configuration from the monitor config file
-    with open(args.config, "r") as file:
-        monitor_config = yaml.safe_load(file)
-
-    log_config = monitor_config.get("logging")
+    log_config = log_config.get("logging")
     if log_config is None:
-        print(f"Configuration for 'logging' not found in {args.config}.")
+        print(f"Configuration for 'logging' not found in {args.log}.")
         sys.exit(1)
 
-        # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
+    # --- Central Logging Setup (BEFORE ANY LoggingHandler INSTANCES ARE CREATED) ---
     log_queue = queue.Queue(-1)
 
-    LOG_FILE = log_config.get("log_file_name", "folder_monitor.log")
-    LOG_FOLDER = log_config.get("log_folder", "logs")
+    LOG_FILE = log_config.get("file_name", "folder_monitor.log")
+    LOG_FOLDER = log_config.get("folder", "logs")
     MAX_BYTES = log_config.get("max_bytes", 10 * 1024 * 1024)  # Default to 10 MB
     BACKUP_COUNT = log_config.get("backup_count", 5)  # Default to
 
@@ -295,22 +267,81 @@ if __name__ == "__main__":
     # All log messages from any logger (including those created by LoggingHandler)
     # will propagate up to the root logger and then go through this queue_handler.
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)  # Set the overall minimum logging level
+    # Get log_level from log config
+
+    log_level = log_config.get("log_level", "INFO")
+    log_level = log_level.upper()
+    root_logger.setLevel(log_level)
     # Remove default handlers if any (crucial for clean setup)
     for h in root_logger.handlers[:]:
         root_logger.removeHandler(h)
 
     root_logger.addHandler(queue_handler)
-    root_logger.debug("Root logger configured with queue handler.")
     # --- End Central Logging Setup ---
 
     # # Get a unique logger instance
-    logger = get_unique_logger(log_level=log_config.get("log_level"))
+    logger = get_unique_logger(log_level=log_level)
+
+    # If config file does not exists, then we create one
+    if (not os.path.exists(args.config)):
+        print(f"App configuration file '{args.config}' does not exist.")
+        print(f"Creating new app configuration file '{args.config}'")
+        with open(args.config, "w") as file:
+            # Write version and logging configuration only
+            file.write(f"version: {__version__[0]}.{__version__[1]}.{__version__[2]}\n")
+            file.write("monitors:\n")
+            file.write("  - name: \"monitor-example\"\n")
+            file.write("    monitor_path: \"/path/to/monitor\"\n")
+            file.write("    remote_path: \"/path/to/remote\"\n")
+            file.write("    remote_profiles:\n")
+            file.write("      - \"profile-name-1\"\n")
+            file.write("      - \"profile-name-2\"\n")
+            file.write("      - \"profile-name-3\"\n")
+            file.write("    backup:\n")
+            file.write("        interval: \"24h\"\n")
+            file.write("")
+
+
+    # Load app configuration
+    with open(args.config, "r") as file:
+        monitor_config = yaml.safe_load(file)
+
+    # Handle commands
+    if args.command is not None:
+        command_processor = CommandProcessor(logger=logger)
+        config_path = Path(args.config).resolve()
+        if args.command == "profile":
+            profile_name = getattr(args, "profile_name", None)
+            if profile_name is not  None:
+                profile_name = profile_name.strip()
+            # Put profile_name in dict object
+            command_processor.process_command(
+                command=args.command,
+                subcommand=args.profile_subcommand,
+                arguments={"profile_name" : profile_name}
+                )
+        elif args.command == "config":
+            command_processor.process_command(
+                command=args.command,
+                subcommand=args.config_subcommand,
+                arguments={"config_path" : config_path}
+                )
+        else:
+            command_processor.process_command(
+                command=args.command,
+                arguments={"config_path" : config_path}
+            )
+
+        queue_listener.stop()
+        logging.shutdown()      # Ensures all logs are written to disk
+        sys.stdout.flush()      # Ensures all print statements hit the console
+        os._exit(0)             # Suppress Python cleanup messages
+
+    root_logger.setLevel(logging.DEBUG)  # Set the overall minimum logging level
+    config_version = monitor_config.get("version")
     logger.debug(
         f"folder_monitor: setup logging ready. Log level: {log_config.get('log_level', 'INFO').upper()}"
     )
-
-    config_version = monitor_config.get("version")
     logger.debug(f"Configuration version: {config_version}")
 
     # First validate monitor config file
@@ -344,29 +375,27 @@ if __name__ == "__main__":
             log_config=log_config,
         )
 
-        if not monitor_handler.monitor_enabled:
-            logger.debug(f"Monitor {monitor['name']} is disabled. Skipping...")
-            continue
-
         monitor_handlers.add(monitor_handler)
+        monitor_name = monitor['name']
+        monitor_path = monitor['monitor_path']
+        remote_path = monitor['remote_path']
         logger.info(
-            f"Starting monitor for [{monitor['name']}] at path [{monitor['monitor_path']}] to destination: [{monitor['destination_path']}]"
+            f"Starting monitor for [{monitor_name}] at path [{monitor_path}] to remote_path: [{remote_path}]"
         )
         # Start the monitor
         monitor_handler.start_monitor()
 
     # BEGIN: backups
     logger.debug("Begin processing backups")
-    active_threads = []
+    backup_handlers = []
     for monitor in monitors:
-        # Backup runs if backup is enabled, regardless if monitor enabled or not
-        thread = threading.Thread(
-            target=monitor_backup_task,
-            args=(monitor,),  # Trailing "," requireed as args expects an Iterable
-            daemon=True,
+        backup_handler = BackupHandler(
+            logger=logger,
+            monitor_config=monitor
         )
-        thread.start()
-        active_threads.append(thread)
+        
+        backup_handler.start()
+        backup_handlers.append(backup_handler)
 
     logger.debug("End processing backups")
     # END: backups
@@ -397,12 +426,10 @@ if __name__ == "__main__":
             monitor_handler.stop_monitor()
         logger.info("All monitor_handlers finished.")
 
-    for thread in active_threads:
-        if thread.is_alive():
-            logger.info(f"Waiting for thread {thread.name} to finish...")
-            thread.join()
-            thread = None
-    logger.info("All threads finished.")
+    # Stop backup handlers
+    for handler in backup_handlers:
+        handler.stop()
+    logger.info("All backup handlers finished.")
 
     # If the crash PID file exists, remove it
     if os.path.exists(CRASH_PID_FILE):

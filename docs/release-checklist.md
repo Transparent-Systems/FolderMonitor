@@ -1,0 +1,14 @@
+# Release Checklist
+
+- [ ] **Update Change Notes**: Ensure `CHANGELOG.md` is updated with the new version number, date, and a summary of changes.
+- [ ] **Update Release Log**: Verify that any internal release logs or documentation sites are updated to reflect the new version.
+- [ ] **Check requirements.in**: Verify that `requirements.in` (and `requirements.txt`) are up to date with the correct dependency versions.
+- [ ] **Run Tests**: Execute `python folder_monitor.py -t -c "./conf/config.yaml"` to ensure the environment and configuration are valid.
+- [ ] **Squash Commits**: Run `git rebase -i main` to combine local commits into a clean history.
+- [ ] **Build Executable**: Run PyInstaller to generate the latest `foldermonitor.exe`.
+        Command: python build_project.py
+- [ ] **Add Git Release Tag**: Create a new git tag for the version (e.g., `git tag -a <version> -m "Release <version>"`).
+- [ ] **Push to GitHub**: Push the code and the tags to the remote repository (`git push origin <branch> --tags`).
+- [ ] **Merge back into main branch**: Checkout main, git merge <branch>, and delete the branch (`git branch -d <branch>`).
+- [ ] **Push main branch to GitHub**: git push origin main.
+- [ ] **Create GitHub Release**: Draft a new release on GitHub, attach the executable, and paste the changelog notes.

@@ -1,0 +1,109 @@
+version: "2.0.0"
+
+# On Windows use forward slash "/"
+# Good: C:/path/to/monitor
+# Bad: C:\path\to\monitor
+monitors:
+  # - name: "local storage"
+  #   monitor_path: "data/Source/local-storage"
+  #   remote_path: "data/Destination/local-storage"
+  #   remote_profiles:
+  #     - ""
+  #   testing:
+  #     check_delay: 1
+  #   backup:
+  #     interval: ""
+
+  # - name: "nas1 ftp storage"
+  #   monitor_path: "data/Source/nas1-ftp-storage"
+  #   remote_path: "foldermonitor"
+  #   remote_profiles:
+  #     - "nas1-ftp"
+  #   testing:
+  #     check_delay: 1
+  #   backup:
+  #     interval: ""
+  
+  - name: "multi-remote-test"
+    monitor_path: "data/Source/multi-remote-test"
+    remote_path: "test-foldermonitor/multi-remote-test"
+    remote_profiles:
+      - "backblaze-test"
+      # - "amazons3-test"
+      # - "rclone-idrive-test"
+    exclude_patterns: 
+      - "excluded-folder"
+      - "*.tmp"
+    testing:
+      check_delay: 3
+    backup:
+      interval: ""
+
+
+  # - name: "idrive-test-not-versioned"
+  #   monitor_path: "data/Source/idrive-cloud-storage"
+  #   remote_path: "test-foldermonitor/idrive-cloud-storage"
+  #   remote_profiles:
+  #     - "idrive-test"
+  #   exclude_patterns: 
+  #     - "excluded-folder"
+  #     - "*.tmp"
+  #   testing:
+  #     check_delay: 3
+  #   backup:
+  #     interval: ""
+
+  # - name: "idrive-cloud-storage-versioned"
+  #   monitor_path: "data/Source/idrive-cloud-storage"
+  #   remote_path: "test-foldermonitor-versioned/idrive-cloud-storage"
+  #   remote_profiles:
+  #     - "e2"
+  #   exclude_patterns: 
+  #     - "excluded folder"
+  #   testing:
+  #     check_delay: 3
+  #   backup:
+  #     interval: ""
+  
+
+  # - name: "backblaze-cloud-storage"
+  #   monitor_path: "data/Source/backblaze-cloud-storage"
+  #   remote_path: "test-foldermonitor/backblaze-cloud-storage"
+  #   remote_profiles:
+  #     - "b2"
+  #   backup:
+  #     interval: ""
+  
+  # - name: "cloudflare-cloud-storage"
+  #   monitor_path: "data/Source/cloudflare-cloud-storage"
+  #   remote_path: "test-foldermonitor/cloudflare-cloud-storage"
+  #   remote_profiles:
+  #     - "r2"
+  #   testing:
+  #     check_delay: 3
+  #   backup:
+  #     interval: ""
+  
+
+  # - name: "google drive cloud storage - personal credentials"
+  #   monitor_path: "data/Source/google-drive-personal"
+  #   remote_path: "test-foldermonitor/google-drive-personal"
+  #   remote_profiles:
+  #     - "drive-personal"
+  #   testing:
+  #     check_delay: 10
+  #   backup:
+  #     interval: ""
+  
+
+  # - name: "google drive cloud storage - generic credentials"
+  #   monitor_path: "data/Source/google-drive-generic"
+  #   remote_path: "test-foldermonitor/google-drive-generic"
+  #   remote_profiles:
+  #     - "drive"
+  #   testing:
+  #     check_delay: 20
+    # backup:
+  #   # interval: ""
+
+

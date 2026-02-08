@@ -4,11 +4,11 @@
 
 ## 🚀 Quick Start
 
-1. **Install rclone**: Download from [rclone.org](https://rclone.org/downloads/) and add it to your PATH.
-2. **Configure rclone**: Run `rclone config` to setup a new remote.
-3. **Run FolderMonitor**:
+1. **Run FolderMonitor**:
 
     *Option A: Using the Executable (Windows)*
+    Download foldermonitor.exe from GitHub. You can find the exe file under Releases.
+
     ```cmd
     foldermonitor.exe -c "./conf/config.yaml"
     ```
@@ -32,7 +32,27 @@
     ```bash
     python folder_monitor.py -c "./conf/config.yaml"
     ```
-4. **Recommended: run FolderMonitor in test mode**   
+
+2 **Setup remote profiles**
+  Create a new remote profile with command:
+  ```bash
+  foldermonitor.exe profile create  
+  OR
+  python folder_monitor.py profile create
+  ```
+  Alternatively, if you have already Rclone installed, you can import profiles with command:
+    foldermonitor.exe profile import
+    OR
+    python folder_monitor.py profile import
+
+  
+3 **Configure monitors in config.yaml**
+
+  When running folder monitor for the first time it will automatically generate a configuration file in config/config.yaml.
+  Edit file config.yaml to add monitors.
+
+
+4 **Run FolderMonitor in test mode**   
    Running folder monitor in test mode ensures your environment and config file are good.
    
    Test mode will check monitor path and if destination path is writable.
@@ -51,7 +71,7 @@
 [Documentation](https://aip.transparent.co.nz/foldermonitor/) |
 
 FolderMonitor monitors a folder and files in it for changes and propagates folders and files a target destination.  
-The target destination can be a cloud storage provider, FTP server, local drive or shared folder.
+The target destination can be a cloud storage provider, FTP server, local drive or shared folder.  
 Examples of cloud storage providers are:
 
 * Microsoft OneDrive
@@ -63,14 +83,44 @@ Examples of cloud storage providers are:
 * A WEBDAV server
 * Any FTP server
 
-FolderMonitor uses rclone as ActionHandler to propagate changes.
-Other ActionHandlers can be added if required, for example an API ActionHandler.
+S3-compatible providers represent the vast majority of the object storage market.
+
+### S3Handler
+
+The S3Handler is builtin to FolderMonitor.
+It handles S3 compatible cloud storage providers, like:
+- Amazon S3 (tested)
+- Cloudflare R2 (tested)
+- Idrive E2 (tested)
+- Backblaze B2 (tested)
+- Oracle Cloud Object Storage  
+- IBM Cloud Object Storage
+- Alibaba Cloud OSS
+  
+The S3Handler is a builtin file handler. It eliminates the need for Rclone when using S3 compatible cloud storage.  
+This makes it much easier to use FolderMonitor without having to depend on Rclone.  
+For small files the S3Handler is between 2 - 3 times as fast as rclone.  
+For files of about 1Mb the data transfer is a fraction faster.  
+FolderMonitor will use S3Handler if the remote profile is in foldermonitor.conf  
+You can import the rclone S3 profiles with command:  
+python folder_monitor.py profile import
+
+Any remote profile not in foldermonitor.conf will use Rclone.
+
+Over time we will add native handlers for common cloud storage providers and other storage types.  
+This will reduce dependency on Rclone, and simplifies deployment and configuration. 
+
+### Rclone
+
+Rclone is the swiss knife of copying file to and from cloud storage.
+Any remote profile not in foldermonitor.conf will use Rclone.
+
 
 ## Acknowledgments
 
 This project was developed with the assistance of Google Gemini.
-There is a VS Code extension for Google Gemini Code Assist in agent mode.
-Highly recommended.
+We used Gemini Code Assist in VS Code for development.
+The code suggestions and quality are excellent.
 
 ## Features
 
@@ -92,32 +142,28 @@ See file: LICENSE
 
 You can find more information on website [aip.transparent.co.nz/FolderMonitor](https://aip.transparent.co.nz/FolderMonitor)
 
-Project FolderMonitor grew organically over time.
-All tools I used had some problem, like no real backup, cloud provider locking, hard to debug, huge CPU usage (let me guess ...)
+Project FolderMonitor grew organically over time.  
+All tools I used had some problem, like no real backup, cloud provider locking, hard to debug, huge CPU usage (let me guess ...)  
 Initially I used OneDrive to "backup" files to the OneDrive cloud storage.  
 However with several file explorers running simulteneously the PC became unresponsive.  
-OneDrive was frequently using 100% CPU making working on the PC impossible.
+OneDrive was frequently using 100% CPU making working on the PC impossible.  
 This was a deal breaker to me, I uninstalled OneDrive and decided to use rclone for copying files to the cloud.  
 
 Rclone worked better than OneDrive and unobtrusive in the background.  
 I scheduled an rclone job every few hours and this was just fine for my purposes.  
 Until one day I wanted to upload my security videos to the cloud as well.  
 It was critical to upload those videos instantly and build a simple PowerShell script to do the job.  
-It worked, but it was not scalable. Each time I wanted to monitor another folder I had to copy the script and change the settings.
-The loggin was cumersome as well and I needed to run a separate cleanup job for the log files generated.
-The main issues was that PowerShell was running on Windows only.  
+It worked, but it was not scalable. Each time I wanted to monitor another folder I had to copy the script and change the settings.  
+The logging was cumersome as well and I needed to run a separate cleanup job for the log files generated.  
+The main issue was that PowerShell was running on Windows only.  
 
 Now I had the choice to build a separate application for Linux, or build a generic solution for Windows, Linux and Mac OS.  
 This is when FolderMonitor was born.  
-It's a Python application that depends on only a few components: rclone and watchdog.  
-While I had little expereince with Python, it has proven to be a great choice.  
+While I had little experience with Python, it has proven to be a great choice.  
 VS Code has fantastic support for Python development like code completion and debugging.  
-I added Google Gemini Code Assist extension. Gemini worked just great.  
+I added the Gemini Code Assist extension. Gemini worked just great.  
 
 ## Future development
-
-It is difficult to predict the future and what it measn for FolderMonitor.
-Future development depends on community support and request.
 
 Some new features could include:
 

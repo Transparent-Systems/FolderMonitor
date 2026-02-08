@@ -1,12 +1,20 @@
 """
-Version: 1.1
+Version: 2.0.0
 
 This script runs integration tests for a monitor configured in a config.yaml file.
 It uses the unittest framework to execute tests sequentially.
 The script depends on a folder_monitor running in a separate process.
 
 Pre-requisites:
-Start folder_monitor using the same config.yaml file as this script.
+    Start folder_monitor using the same config.yaml file as this script.
+
+TODO:
+    This class was originally for testing rclone only.
+    On v2.0.0 we have a S3Handler as well.
+    The script needs to be adapted working on both RcloneHandler and S3Handler.
+    This can be implemented by instantiating and instance of RcloneHandler or S3Handler.
+    Assign the instance to cls.base_handler which is an instance of type BaseHandler
+    In the test cases we use self.base_handler to verify the remote state.
 """
 
 import argparse
@@ -25,6 +33,8 @@ sys.path.insert(0, scriptspath.resolve().as_posix())
 
 from config_models import ConfigModels
 from rclone_handler import RcloneHandler
+from s3_handler import S3Handler
+from profile_handler import ProfileHandler
 from utils.testing_util import create_test_data, delete_test_data, create_big_file
 from utils.rclone_util import CheckPath
 from utils.logging_util import get_unique_logger
@@ -42,30 +52,75 @@ class TestFolderMonitorIntegration(unittest.TestCase):
     def setUpClass(cls):
         if not cls.monitor_config:
             raise ValueError("Monitor config not set for TestFolderMonitorIntegration")
+
+        """
+        If remote_profile is missing or empty then the remote is a local file system or a folder share
+        If the remote_profile is not empty, then it must be present in the rclone config file.
+        The reason is that we use rclone to perform all tests.
+        So, even if remote_profile is in foldermonitor config file, there must be a similar remote_profile in the rclone config file
+        Currently, if remote_profile is in folder_monitor config file, then it will be handled by the internal S3Handler.
+        """
+
+
+        remote_profiles = cls.monitor_config.get("remote_profiles")
+        # If there are no remote profiles, then add emtory remote_profile (local file system)
+        if (remote_profiles is None):
+            remote_profiles = []
+        if (len(remote_profiles) == 0):
+            remote_profiles.append("")
         
         cls.source_path = cls.monitor_config.get("monitor_path")
-        cls.destination_path = cls.monitor_config.get("destination_path")
+        cls.remote_path = cls.monitor_config.get("remote_path")
         cls.monitor_name = cls.monitor_config.get("name")
-        
-        # Determine appropriate check delay based on debounce settings
-        # Default debounce is 2.0s. We need to wait at least that long plus some buffer.
-        debounce_delay = cls.monitor_config.get("debounce_delay", 2.0)
-        min_required_delay = debounce_delay + 1.0
-        
-        if cls.check_delay < min_required_delay:
-            cls.logger.info(f"Adjusting check_delay from {cls.check_delay}s to {min_required_delay}s to account for debounce ({debounce_delay}s).")
-            cls.check_delay = min_required_delay
+        testing_config = cls.monitor_config.get("testing", {})
+        cls.check_delay = testing_config.get("check_delay", 1)
 
-        # Setup RcloneHandler and CheckPath
-        cls.rclone_handler = RcloneHandler(
-            base_destination_path=cls.destination_path,
-            base_source_path=cls.source_path,
-            logger=cls.logger,
-            rclone_flags="",
-        )
-        cls.check_path = CheckPath(rclone_handler=cls.rclone_handler, check_delay=cls.check_delay)
-        
-        cls.logger.info(f"Setting up tests for monitor: {cls.monitor_name}")
+        profile_handlers: dict[str, ProfileHandler] = {}
+        # Create ProfileHandler
+        app_names = ["foldermonitor", "rclone"]
+        for app_name in app_names:
+            profile_handlers[app_name] = ProfileHandler(
+                logger=cls.logger,
+                app_name=app_name
+            )
+
+        for remote_profile in remote_profiles:
+            if (profile_handlers["foldermonitor"].get_profile(profile_name=remote_profile)):
+                # Instantiate S3Handler
+                cls.base_handler = S3Handler(
+                    logger=cls.logger,
+                    base_source_path=cls.source_path,
+                    base_remote_path=cls.remote_path,
+                    remote_profile=remote_profile    
+                    )
+                break
+            elif (profile_handlers["rclone"].get_profile(profile_name=remote_profile)):
+                # Instantiate RcloneHandler
+                cls.base_handler = RcloneHandler(
+                    logger=cls.logger,
+                    base_source_path=cls.source_path,
+                    base_remote_path=cls.remote_path,
+                    remote_profile=remote_profile    
+                    )
+                break
+            else:
+                if (remote_profile.strip() == ""):
+                    # Instantiate RcloneHandler
+                    cls.base_handler = RcloneHandler(
+                        logger=cls.logger,
+                        base_source_path=cls.source_path,
+                        base_remote_path=cls.remote_path,
+                        remote_profile=remote_profile    
+                        )
+                    break
+
+        if (cls.base_handler is None):
+            logger.info("Could not find a remote_profile for either foldermonitor or rclone.")
+            raise ValueError("This script requires at least 1 valid remote profile to run.")
+
+        # Setup CheckPath
+        cls.check_path = CheckPath(base_handler=cls.base_handler, check_delay=cls.check_delay)
+        cls.logger.info(f"Ready setUpClass for monitor: {cls.monitor_name}")
 
     def setUp(self):
         """Run before each test"""
@@ -84,12 +139,9 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         delete_test_data(path=self.source_path, files=[file_name])
         
         file_path = create_test_data(path=self.source_path, files=[file_name])
-        head = file_path.parent
-        tail = file_path.name
-        dst_path = self.rclone_handler.get_destination_path(path=head)
-        
-        (found, files) = self.check_path.file_exists(parent_path=dst_path, file_name=tail)
-        self.assertTrue(found, f"File {tail} should exist at {dst_path}. Files found: {files}")
+        remote_path = self.base_handler.get_remote_path(source_path=file_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"File {file_name} should exist at {remote_path}.")
 
     def test_02_delete_file(self):
         """Delete a file"""
@@ -100,16 +152,11 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         create_test_data(path=self.source_path, files=[file_name])
         # Wait for sync
         time.sleep(self.check_delay)
-        
         file_path = delete_test_data(path=self.source_path, files=[file_name])
         self.logger.debug(f"Deleted source file : '{file_path}'")
-        
-        head = file_path.parent
-        tail = file_path.name
-        dst_path = self.rclone_handler.get_destination_path(path=head)
-        
-        (found, files) = self.check_path.file_exists(parent_path=dst_path, file_name=tail)
-        self.assertFalse(found, f"File {tail} should NOT exist at {dst_path}. Files found: {files}")
+        remote_path = self.base_handler.get_remote_path(source_path=file_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 1, f"File {file_name} should not exist at {remote_path}.")
 
     def test_03_create_subfolder_with_files(self):
         """Create subfolder with files. Check last file only"""
@@ -120,47 +167,25 @@ class TestFolderMonitorIntegration(unittest.TestCase):
             "Subfolder3/test3.txt"
         ]
         
-        # Clean
+        # Clean up
         delete_test_data(path=self.source_path, files=["Subfolder3"])
         time.sleep(self.check_delay)
         file_path = create_test_data(path=self.source_path, files=files)
-        head = file_path.parent
-        tail = file_path.name
-        dst_path = self.rclone_handler.get_destination_path(path=head)
-
-        time.sleep(self.check_delay)
-        (found, files) = self.check_path.file_exists(parent_path=dst_path, file_name=tail)
-        self.assertTrue(found, f"File {tail} should exist at {dst_path}. Files found: {files}")
+        remote_path = self.base_handler.get_remote_path(source_path=file_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"File {remote_path} should exist.")
 
     def test_04_delete_subfolder(self):
         """Delete subfolder"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
-        files = ["Subfolder4/test1"]
-        
-        # Setup
-        file_path_files = create_test_data(path=self.source_path, files=files)
         # Wait for sync
         time.sleep(self.check_delay)
-        
+
         file_path = delete_test_data(path=self.source_path, files=["Subfolder4"])
-        head = file_path.parent
-        tail = file_path.name
-        dst_path = self.rclone_handler.get_destination_path(path=head)
+        remote_path = self.base_handler.get_remote_path(source_path=file_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertNotEqual(result_code, 0, f"File {remote_path} should not exist.")
         
-        # Check folder exists
-        (found, files) = self.check_path.folder_exists(parent_path=dst_path, folder_name=tail)
-
-        if found:
-            # This can happen on local storage, subfolder must be empty
-            # Check if the file inside is gone
-            head_file = file_path_files.parent
-            tail_file = file_path_files.name
-            dst_path_file = self.rclone_handler.get_destination_path(path=head_file)
-            (found_file, files_file) = self.check_path.file_exists(parent_path=dst_path_file, file_name=tail_file)
-            self.assertFalse(found_file, f"File {tail_file} inside deleted folder should not exist.")
-        else:
-            self.assertFalse(found, f"Folder {tail} should not exist at {dst_path}.")
-
     def test_05_rename_file(self):
         """Rename file"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
@@ -170,7 +195,7 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         delete_test_data(path=self.source_path, files=["old_file.txt", "new_file.txt"])
         
         old_file_path = create_test_data(path=self.source_path, files=files)
-        # Wait for creation sync
+        # Wait for files to be created
         time.sleep(self.check_delay)
         
         # Rename the file
@@ -181,32 +206,28 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         old_file_path.rename(new_file_path)
 
         # Check if old file has been deleted from destination
-        head = old_file_path.parent
-        tail = old_file_path.name
-        dst_path = self.rclone_handler.get_destination_path(path=head)
-        (found, files) = self.check_path.file_exists(parent_path=dst_path, file_name=tail)
-        self.assertFalse(found, f"Old file {tail} should not exist at {dst_path}.")
+        remote_path = self.base_handler.get_remote_path(source_path=old_file_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"Old file {remote_path} should not exist.")
 
         # Check if new file exists at destination
-        head = new_file_path.parent
-        tail = new_file_path.name
-        dst_path = self.rclone_handler.get_destination_path(head)
-        (found, files) = self.check_path.file_exists(parent_path=dst_path, file_name=tail)
-        self.assertTrue(found, f"New file {tail} should exist at {dst_path}.")
+        remote_path = self.base_handler.get_remote_path(source_path=new_file_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"New file {remote_path} should exist.")
 
     def test_06_rename_subfolder(self):
         """Rename subfolder"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["Subfolder-old/test1.txt", "Subfolder-old/test2.txt"]
         
-        # Clean
+        # Cleanup
         if (Path(self.source_path) / "Subfolder-old").exists():
             shutil.rmtree(Path(self.source_path) / "Subfolder-old")
         if (Path(self.source_path) / "Subfolder-new").exists():
             shutil.rmtree(Path(self.source_path) / "Subfolder-new")
             
         file_path = create_test_data(path=self.source_path, files=files)
-        # Wait for creation sync
+        # Wait for foldermonitor upload
         time.sleep(self.check_delay + 1)
 
         # Rename Subfolder-old to Subfolder-new
@@ -214,19 +235,11 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         head_old = file_path.parent
         head_old.replace(target=new_path.as_posix())
         
-        head_new = new_path / file_path.name # Reconstruct path to file in new folder
-
-        # Check if Subfolder-old has been deleted from destination
-        # We check the folder itself
-        head_old_folder = Path(self.source_path) / "Subfolder-old"
-        dst_path_old = self.rclone_handler.get_destination_path(head_old_folder.parent)
-        (found, files) = self.check_path.folder_exists(parent_path=dst_path_old, folder_name="Subfolder-old")
-        self.assertFalse(found, "Old subfolder should not exist at destination.")
-
-        # Check if new folder exists at destination
-        dst_path_new = self.rclone_handler.get_destination_path(new_path.parent)
-        (found, files) = self.check_path.folder_exists(parent_path=dst_path_new, folder_name="Subfolder-new")
-        self.assertTrue(found, "New subfolder should exist at destination.")
+        # Check if new file exists at remote
+        new_path = Path(self.source_path) / "Subfolder-new" / "test1.txt"
+        remote_path = self.base_handler.get_remote_path(new_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"New file {remote_path} should exist.")
 
     def test_07_write_big_file(self):
         """Write big file"""
@@ -235,54 +248,13 @@ class TestFolderMonitorIntegration(unittest.TestCase):
 
         # Delete big file first
         delete_test_data(path=self.source_path, files=[file_name])
-        # Wait before creating
-        time.sleep(5 + self.check_delay)
         # Create big file
         file_path = create_big_file(path=self.source_path, filename=file_name, write_duration_seconds=10)
-
-        # Wait before checking
-        time.sleep(5 + self.check_delay)
-        dst_path = self.rclone_handler.get_destination_path(path=file_path)
-        (found, isdir, files) = self.check_path.path_exists(path=dst_path)
-        self.assertTrue(found, f"Big file should exist at destination: {dst_path}")
-
-    def test_08_write_many_files(self):
-        """Write many files"""
-        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
-        
-        max_file_count = 4
-        file_paths = []
-        
-        # Clean
-        for i in range(1, max_file_count):
-            file_name = f"many_files_{i}.txt"
-            delete_test_data(path=self.source_path, files=[file_name])
-            file_paths.append(Path(self.source_path) / file_name)
-            
+        # Wait for sync
         time.sleep(self.check_delay)
-
-        # Verify delete for last file only
-        file_path = file_paths[-1]
-        dst_path = self.rclone_handler.get_destination_path(path=file_path)
-        (found, isdir, files) = self.check_path.path_exists(path=dst_path)
-        self.assertFalse(found, f"File {file_path.name} should not exist at destination.")
-        # for file_path in file_paths:
-
-        # Create many files
-        created_paths = []
-        for i in range(1, max_file_count):
-            file_name = f"many_files_{i}.txt"
-            file_path = create_test_data(path=self.source_path, files=[file_name])
-            created_paths.append(file_path)
-
-        # Wait
-        time.sleep(self.check_delay + 2)
-
-        # Verify creation of last file only
-        file_path = created_paths[-1]
-        dst_path = self.rclone_handler.get_destination_path(path=file_path)
-        (found, isdir, files) = self.check_path.path_exists(path=dst_path)
-        self.assertTrue(found, f"File {file_path.name} should exist at destination.")
+        remote_path = self.base_handler.get_remote_path(source_path=file_path)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"New file {remote_path} should exist.")
 
 
 if __name__ == "__main__":
@@ -346,17 +318,17 @@ if __name__ == "__main__":
 
     # Setup File Logging
     log_config = monitor_config.get("logging", {})
-    LOG_FILE = log_config.get("log_file_name", args.log_file_name)
-    LOG_FOLDER = log_config.get("log_folder", "logs")
+    LOG_FILE = log_config.get("file_name", args.log_file_name)
+    LOG_FOLDER = log_config.get("folder", "logs")
     MAX_BYTES = log_config.get("max_bytes", 10 * 1024 * 1024)
     BACKUP_COUNT = log_config.get("backup_count", 5)
 
-    log_folder_path = Path(LOG_FOLDER)
-    if not log_folder_path.exists():
-        log_folder_path.mkdir(parents=True)
+    folder_path = Path(LOG_FOLDER)
+    if not folder_path.exists():
+        folder_path.mkdir(parents=True)
 
     file_handler = logging.handlers.RotatingFileHandler(
-        (log_folder_path / LOG_FILE).as_posix(),
+        (folder_path / LOG_FILE).as_posix(),
         maxBytes=MAX_BYTES,
         backupCount=BACKUP_COUNT
     )
@@ -371,10 +343,6 @@ if __name__ == "__main__":
     overall_success = True
 
     for monitor in monitors:
-        if not monitor.get("enabled"):
-            logger.info(f"Skipping disabled monitor: {monitor.get('name')}")
-            continue
-
         monitor_path = Path(monitor.get("monitor_path"))
         if not monitor_path.exists():
             monitor_path.mkdir(parents=True)

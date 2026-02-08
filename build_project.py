@@ -1,6 +1,5 @@
 import os
 import sys
-import yaml
 import shutil
 import subprocess
 
@@ -25,9 +24,9 @@ def clean_previous_builds():
             shutil.rmtree(folder)
 
 def build_executable():
-    version = get_app_version()
     # On Linux, binaries don't usually have extensions like .exe
-    output_name = f"{APP_NAME}_v{version}"
+    # output_name = f"{APP_NAME}_v{version}"
+    output_name = f"{APP_NAME}"
     
     print(f"--- Preparing build for {output_name} ---")
     clean_previous_builds()

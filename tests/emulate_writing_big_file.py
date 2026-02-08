@@ -3,7 +3,6 @@
 import os
 import time
 import argparse
-import random
 
 
 def emulate_writing_big_file(
@@ -63,7 +62,7 @@ def emulate_writing_big_file(
         # The 'with open(...)' block ensures the file is closed automatically
         print(f"File handle for {filepath} is now closed (if it was opened).")
         print(
-            f"Modification time will be updated now by OS (if not already during write close)."
+            "Modification time will be updated now by OS (if not already during write close)."
         )
         # Give a brief moment for OS to fully finalize metadata
         time.sleep(0.1)
