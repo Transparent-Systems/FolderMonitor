@@ -8,7 +8,8 @@
 - [ ] **Build Executable**: Run PyInstaller to generate the latest `foldermonitor.exe`.
         Command: python build_project.py
 - [ ] **Add Git Release Tag**: Create a new git tag for the version (e.g., `git tag -a <version> -m "Release <version>"`).
-- [ ] **Push to GitHub**: Push the code and the tags to the remote repository (`git push origin <branch> --tags`).
+- [ ] **Push to GitHub**: Push the code and the tags to the remote repository (`git push origin <branch> --tags`). 
+        If you rebased an existing branch, you may need to force push with `git push --force-with-lease origin <branch> --tags`.
 - [ ] **Merge back into main branch**: Checkout main, git merge <branch>, and delete the branch (`git branch -d <branch>`).
 - [ ] **Push main branch to GitHub**: git push origin main.
 - [ ] **Create GitHub Release**: Draft a new release on GitHub, attach the executable, and paste the changelog notes.
