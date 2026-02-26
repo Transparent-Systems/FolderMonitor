@@ -11,6 +11,7 @@ Ensure no folder monitor is currently running on any configured test monitor to 
 import argparse
 import sys
 import logging
+import logging.handlers
 import yaml
 import unittest
 from pathlib import Path
@@ -19,6 +20,7 @@ from pathlib import Path
 scriptspath = Path(__file__).parent / Path("../scripts")
 sys.path.insert(0, scriptspath.resolve().as_posix())
 
+from profile_handler import ProfileHandler
 from s3_handler import S3Handler
 from utils.testing_util import create_test_data
 from utils.logging_util import get_unique_logger
@@ -46,10 +48,35 @@ class TestS3HandlerIntegration(unittest.TestCase):
         raw_dest_stripped = raw_dest.rstrip('/')
         cls.remote_path =f"{raw_dest_stripped}/{subfolder}"
         
+        # In v2.0.0 a monitor can have more than oneremote_profile. They are stored in remote_profiles
+        # Iterate over remote_profiles until we find one of type S3
+        # If no S3 profile found then throw an exception
+
+        # Create profile handler
+        profile_handler = ProfileHandler(
+            logger=cls.logger,
+            app_name="foldermonitor"
+        )
+
+        remote_profile_names = cls.monitor_config.get("remote_profiles")
+        if remote_profile_names:
+            for remote_profile_name in remote_profile_names:
+                remote_profile = profile_handler.get_profile(profile_name=remote_profile_name)
+                remote_profile_type = remote_profile.get("type")
+                if remote_profile_type.lower() == "s3":
+                    cls.remote_profile_name = remote_profile_name
+                    break
+        else:
+            # Throw exception
+            raise ValueError(f"No S3 profile found for monitor: {cls.monitor_name}")
+
+        if not cls.remote_profile_name:
+            raise ValueError(f"No S3 profile found for monitor: {cls.monitor_name}")
+        
         cls.s3_handler = S3Handler(
             base_remote_path=cls.remote_path,
             base_source_path=cls.source_path,
-            remote_profile=cls.monitor_config.get("remote_profile"),
+            remote_profile=remote_profile_name,
             logger=cls.logger,
             app_name="foldermonitor"
         )
@@ -80,8 +107,42 @@ class TestS3HandlerIntegration(unittest.TestCase):
         remote_path =self.s3_handler.get_remote_path(source_path=remote_path_missing)
         (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
         self.assertGreater(result_code, 0, f"File does not exists: {remote_path}. ResultCode: {result_output}")
-
         # Checking directory exists is pointless for Object Storage as is stored as file meta data
+
+    def test_02_create_file_with_spaces(self):
+        """Test copy file and check path exists)"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
+        file_name = "file with spaces.txt"
+        
+        # Create source file
+        file_path = create_test_data(path=self.source_path, files=[file_name])
+        # Copy file to remote
+        (result_code, result_output) = self.s3_handler.copy_file(
+            source_path=file_path.as_posix()
+        )
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
+
+        # Check file exists
+        remote_path =self.s3_handler.get_remote_path(source_path=file_path)
+        (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
+
+        if result_code != 0:
+            self.logger.error(f"Could not find file in remote: {remote_path}. ResultCode: {result_code}. Output: {result_output}")
+            return
+        
+        if result_code != 0:
+            self.logger.error(f"Could not find file in remote: {remote_path}. ResultCode: {result_code}. Output: {result_output}")
+            return
+        
+        # Check if we can delete a file with spaces
+        (result_code, result_output) = self.s3_handler.delete_file(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
+
+        # Check that file does not exist anymore
+        (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
+        self.assertNotEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
+
 
     def test_05_delete_file_at_remote(self):
         """Delete a file at remote"""

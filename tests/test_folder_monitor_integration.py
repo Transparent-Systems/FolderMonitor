@@ -158,6 +158,23 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         result_code, _ = self.check_path.file_exists(remote_path=remote_path)
         self.assertEqual(result_code, 1, f"File {file_name} should not exist at {remote_path}.")
 
+    def test_02_01_delete_file_with_spaces(self):
+        """Delete a file"""
+        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
+        file_name = "file with spaces test1.txt"
+        
+        # Ensure file exists first (setup)
+        create_test_data(path=self.source_path, files=[file_name])
+        # Wait for sync
+        time.sleep(self.check_delay)
+        file_path = delete_test_data(path=self.source_path, files=[file_name])
+        self.logger.debug(f"Deleted source file : '{file_path}'")
+        remote_path = self.base_handler.get_remote_path(source_path=file_path)
+        time.sleep(self.check_delay)
+        result_code, _ = self.check_path.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 1, f"File {file_name} should not exist at {remote_path}.")
+
+
     def test_03_create_subfolder_with_files(self):
         """Create subfolder with files. Check last file only"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")

@@ -1,0 +1,95 @@
+version: "2.0.0"
+
+logging:
+  log_file_name: test-s3-handler-integration.log
+  log_folder: logs
+  log_max_file_size: 1000000
+  log_max_backup_count: 5
+  # log_level: debug | info | warning | error | critical
+  log_level: debug
+
+monitors:
+  - name: "idrive-not-versioned"
+    enabled: true
+    monitor_path: "data/Source/idrive-cloud-storage"
+    remote_path: "test-foldermonitor/idrive-cloud-storage"
+    remote_profile: "idrive-test"
+    # remote_profiles: 
+    #   - "idrive-test"
+    #   - "idrive-test-2"
+    exclude_patterns: 
+      - "excluded-folder"
+      - "*.tmp"
+    testing:
+      check_delay: 3
+    backup:
+      enabled: false
+      interval: ""
+
+
+  # - name: "idrive-versioned"
+  #   enabled: true
+  #   monitor_path: "data/Source/idrive-cloud-storage"
+  #   remote_path: "test-foldermonitor-versioned/idrive-cloud-storage"
+  #   remote_profile: "idrive-test"
+  #   exclude_patterns: 
+  #     - "excluded folder"
+  #   testing:
+  #     check_delay: 3
+  #   backup:
+  #     enabled: false
+  #     interval: ""
+  
+
+  # - name: "backblaze-storage"
+  #   enabled: true
+  #   monitor_path: "data/Source/backblaze-cloud-storage"
+  #   remote_path: "test-foldermonitor/backblaze-cloud-storage"
+  #   remote_profile: "backblaze-test"
+  #   testing:
+  #     check_delay: 5
+  #   backup:
+  #     enabled: false
+  #     interval: ""
+  
+
+  # - name: "cloudflare-storage"
+  #   enabled: true
+  #   monitor_path: "data/Source/cloudflare-cloud-storage"
+  #   remote_path: "test-foldermonitor/cloudflare-cloud-storage"
+  #   remote_profile: "r2"
+  #   rclone_flags: "--transfers 4 --s3-no-check-bucket"
+  #   testing:
+  #     check_delay: 3
+  #   backup:
+  #     enabled: false
+  #     interval: ""
+  
+
+  # - name: "google drive - personal credentials"
+  #   enabled: true
+  #   monitor_path: "data/Source/google-drive-personal"
+  #   remote_path: "test-foldermonitor/google-drive-personal"
+  #   remote_profile: "drive-personal"
+  #   rclone_flags: "--transfers 4 --fast-list"
+  #   testing:
+  #     check_delay: 10
+  #   backup:
+  #     enabled: false
+  #     interval: ""
+  
+
+  # - name: "google drive - generic credentials"
+  #   enabled: true
+  #   monitor_path: "data/Source/google-drive-generic"
+  #   remote_path: "test-foldermonitor/google-drive-generic"
+  #   remote_profile: "drive"
+  #   rclone_flags: "--transfers 4 --fast-list"
+  #   testing:
+  #     check_delay: 20
+    # backup:
+  #   # enabled: false
+  #   # interval: ""
+  #   # 
+
+

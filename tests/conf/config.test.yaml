@@ -36,8 +36,8 @@ monitors:
       - "*.tmp"
     testing:
       check_delay: 3
-    backup:
-      interval: ""
+    # backup:
+    #   interval: ""
 
 
   # - name: "idrive-test-not-versioned"

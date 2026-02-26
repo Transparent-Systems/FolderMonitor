@@ -1,0 +1,59 @@
+version: "1.3.0"
+
+logging:
+  log_file_name: folder_monitor.log
+  log_folder: logs # relative or full path like C:/Apps/FolderMonitor/logs.
+  log_max_file_size: 1000000
+  log_max_backup_count: 5
+  log_level: debug # debug | info | warning | error | critical
+
+# On Windows use forward slash "/"
+# Good: C:/path/to/monitor
+# Bad: C:\path\to\monitor
+monitors:
+  - name: "Idrive e2"
+    enabled: true
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Idrive"
+    remote_path: "e2:test-foldermonitor/Idrive"
+    rclone_flags: "--transfers 8 --s3-no-check-bucket"
+    exclude_patterns: 
+      - "excluded folder"
+    testing:
+      check_delay: 3
+    backup:
+      enabled: true
+      interval: "1d"
+      
+ 
+  - name: "Backblaze b2"
+    enabled: false
+    monitor_path: "D:/Development/FolderMonitor/data/Source/Backblaze"
+    remote_path: "b2:test-foldermonitor/Backblaze"
+    rclone_flags: "--transfers 8"
+    exclude_patterns: 
+      - "excluded folder"
+    testing:
+      check_delay: 3
+    backup:
+      enabled: true
+      interval: ""
+      
+
+  # - name: "Internxt drive"
+  #   enabled: false
+  #   monitor_path: "D:/Development/FolderMonitor/data/Source/internxt-drive"
+  #   remote_path: "internxt:test-foldermonitor/internxt-drive"
+  #   rclone_flags: >
+  #     --webdav-method PUT
+  #     --tpslimit 4
+  #     --ignore-times
+  #     --no-check-certificate
+  #   exclude_patterns: 
+  #     - "excluded folder"
+  #   testing:
+  #     check_delay: 3
+  #   backup:
+  #     enabled: true
+  #     interval: ""
+      
+ 
