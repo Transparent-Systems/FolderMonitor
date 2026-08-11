@@ -10,7 +10,7 @@ Description:
 Requirements:
 - boto3 must be installed.
 - S3 credentials and configuration should be set via environment variables
-  (access_key_id, secret_access_key, S3_DEFAULT_REGION) or ~/.aws/ files.
+  (access_key_id, access_key_secret, S3_DEFAULT_REGION) or ~/.aws/ files.
 - For non-S3 compatible providers, set endpoint_url environment variable.
 
 See: 
@@ -22,7 +22,7 @@ import logging
 import hashlib
 import os
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple, List, TYPE_CHECKING
 
 try:
     import boto3
@@ -32,6 +32,9 @@ except ImportError:
 
 from botocore.exceptions import ClientError
 from boto3.s3.transfer import TransferConfig
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.client import S3Client
 
 try:
     from s3_factory import S3Factory
@@ -49,37 +52,37 @@ class S3Handler(BaseHandler):
     A class to copy or delete files and folders using boto3 for S3 compatible storage.
     Mimics RcloneHandler structure.
     """
+    client: "S3Client"
 
     def __init__(
         self,
         logger: logging.Logger,
         base_source_path: str,
         base_remote_path: str,
-        remote_profile: str,
-        app_name: str = "foldermonitor",
+        profile_config: dict
     ):
         """
         base_remote_path      : profile:bucket/prefix (e.g., "e2:mybucket/backups")
         base_source_path      : local source path
         remote_profile        : profile name (e.g., "e2")
         logger                : logger instance
-        app_name              : application name (e.g., "foldermonitor")
+        db_path               : path to sqlite database
         """
         self.logger = logger
         self.base_remote_path = Path(base_remote_path)
         self.base_source_path = Path(base_source_path)
-        self.profile_name = remote_profile
-        self.app_name = app_name
+        self.profile_config = profile_config
     
         """
         Initializes the client once for the lifetime of the monitor.
         """
         # Get client fusing S3ConnectionFactory
         s3_factory = S3Factory(
-            logger=self.logger,
-            app_name=app_name
+            logger=self.logger
             )
-        self.client = s3_factory.get_client_from_remote(profile_name=remote_profile)
+        self.client = s3_factory.get_s3_client(
+            profile_config=self.profile_config
+        )
 
         # high_performance_transfer_config = TransferConfig(
         #     # The file size at which to start using multipart uploads
@@ -182,7 +185,7 @@ class S3Handler(BaseHandler):
             self.logger.debug(f"Path does not exist: s3://{bucket}/{key}")
             return (1, str(e))
 
-    def copy_file(self, source_path, remote_path=None) -> tuple[int, list[str]]:
+    def copy_file(self, source_path, remote_path=None) -> tuple[int, str]:
         """
         Copy source_path to remote_path.
         If remote_path is None, the remote_path is derived from the source_path
@@ -220,7 +223,8 @@ class S3Handler(BaseHandler):
             else:
                 pass
         except ClientError as e:
-            if e.response['Error']['Code'] == '404':
+            error_code = e.response.get('Error', {}).get('Code')
+            if error_code == '404':
                 pass
                
         try:
@@ -262,7 +266,7 @@ class S3Handler(BaseHandler):
                     relative_path = local_file_path.name
                 
                 # S3 keys use forward slashes
-                key = f"{prefix}{relative_path.as_posix()}"
+                key = f"{prefix}{Path(relative_path).as_posix()}"
                 
                 should_copy = False
                 

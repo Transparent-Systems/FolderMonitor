@@ -15,13 +15,13 @@ class BaseHandler(ABC):
         pass
 
     @abstractmethod
-    def file_exists(self, remote_path: str) -> Tuple[int, str]:
+    def file_exists(self, remote_path: str) -> tuple[int, str]:
         """
         Check if remote path exists
         """
         pass
 
-    def copy_file(self, source_path: str, remote_path: str=None) -> tuple[int, list[str]]:
+    def copy_file(self, source_path: str, remote_path: str | None = None) -> tuple[int, str]:
         """
         Copy source_path to remote_path.
         If remote_path is None, the remote_path is derived from the source_path

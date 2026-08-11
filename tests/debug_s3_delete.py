@@ -15,7 +15,7 @@ profile_name = "idrive-test"
 profile_attributes = profile_handler.get_profile(profile_name=profile_name)
 
 ACCESS_KEY = profile_attributes.get('access_key_id')
-SECRET_KEY = profile_attributes.get('secret_access_key')
+SECRET_KEY = profile_attributes.get('access_key_secret')
 ENDPOINT = profile_attributes.get('endpoint')
 
 endpoint_url = ENDPOINT
@@ -24,7 +24,7 @@ if ("http://" in endpoint_url):
 if ("https://" not in endpoint_url):
     endpoint_url = f"https://{endpoint_url}"
 
-SECRET_KEY = profile_attributes.get('secret_access_key')
+SECRET_KEY = profile_attributes.get('access_key_secret')
 BUCKET = "test-foldermonitor"
 PREFIX = "idrive-cloud-storage/test-s3-handler-integration/"
 

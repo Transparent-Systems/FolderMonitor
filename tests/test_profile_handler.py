@@ -36,7 +36,7 @@ def test_update_profile(profile_name: str = None):
     test_profile = {
         "type": "s3",
         "access_key_id" : "<my_access_key_id>",
-        "secret_access_key": "<my_secret_access_key>",
+        "access_key_secret": "<my_access_key_secret>",
         "default_region": "us-east-1",
         "key1": "value1",
         "key2": "value2",
@@ -69,7 +69,7 @@ def test_update_profile(profile_name: str = None):
         "type": "s3",
         "provider": "Amazon AWS",
         "access_key_id" : "<my_access_key_id>",
-        "secret_access_key": "<my_secret_access_key>",
+        "access_key_secret": "<my_access_key_secret>",
         "region": "us-east-1",
         "key4": "value1",
         "key5": "value2",
@@ -91,7 +91,7 @@ def test_update_profile(profile_name: str = None):
     print("End test update profile")
 
 
-def test_create_profile(profile_name: str = None):
+def test_create_profile(profile_name: str):
     print("Begin test_create_profile")
     profile_handler = ProfileHandler(
         app_name="foldermonitor",
@@ -103,7 +103,7 @@ def test_create_profile(profile_name: str = None):
         "test_name": "test_create_profile",
         "type": "s3",
         "access_key_id" : "<my_access_key_id>",
-        "secret_access_key": "<my_secret_access_key>",
+        "access_key_secret": "<my_access_key_secret>",
         "s3_default_region": "us-east-1",
         "key1": "value1",
         "key2": "value2",
@@ -129,7 +129,7 @@ def test_create_profile(profile_name: str = None):
             print(f"Error adding profile: {test_profile['profile_name']}")
     print("End testing test_create_profile")
 
-def test_delete_profile(profile_name: str = None):
+def test_delete_profile(profile_name: str):
     print("Begin test_create_profile")
     profile_handler = ProfileHandler(
         app_name="foldermonitor",
@@ -154,4 +154,4 @@ if __name__ == '__main__':
     # test_update_profile("test-update-profile")
     # test_create_profile("test-create-profile")
     test_create_profile("test-create-profile-2")
-    test_delete_profile("test-create-profile-2")
+    # test_delete_profile("test-create-profile-2")

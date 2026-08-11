@@ -54,7 +54,7 @@ class RcloneHandler(BaseHandler):
         RcloneHandler.rclone_path = shutil.which("rclone")
         if RcloneHandler.rclone_path is None:
             logger.error("rclone executable not found in the system's PATH.") 
-            return RcloneHandler.rclone_path
+            return ""
 
         # Convert RcloneHandler.rclone_path to posix string
         RcloneHandler.rclone_path = str(Path(RcloneHandler.rclone_path).as_posix())
@@ -65,36 +65,32 @@ class RcloneHandler(BaseHandler):
         logger: logging.Logger,
         base_source_path: str,
         base_remote_path: str,
-        remote_profile: str
+        profile_name: str
     ):
         """
         Docstring for __init__
         
         :param self: Instance of this class
         :param logger: logger instance
-        :type logger: logging.Logger
         :param base_source_path: Source path to copy from
-        :type base_source_path: str
         :param base_remote_path: remote path to copy to. This path is without the profile name commonly used in rclone.
-        :type base_remote_path: str
-        :remote_profile: The profile name commonly used in rclone: remote_profile:remote__path
-        :remote_profile: str
+        :profile_name: The profile name used in Rclone commands in format profile_name:remote_path
         """    
         self.logger = logger
 
         # Get rclone_path
         self.rclone_path = RcloneHandler.get_rclone_path(logger=logger)
 
-        if (remote_profile is None):
-            self.remote_profile = ""
+        if (profile_name is None):
+            self.profile_name = ""
         else:
-            self.remote_profile = remote_profile
+            self.profile_name = profile_name
 
-        if self.remote_profile != "":
+        if self.profile_name != "":
             # Check if remote_path is in the conventinal rclone format with remote_profile prefix (remote_profile:)
             remote_path_str = str(Path(base_remote_path).as_posix())
-            if not remote_path_str.startswith(remote_profile + ":"):
-                base_remote_path = remote_profile + ":" + base_remote_path
+            if not remote_path_str.startswith(profile_name + ":"):
+                base_remote_path = profile_name + ":" + base_remote_path
 
         self.base_remote_path = Path(base_remote_path)
         self.base_source_path = Path(base_source_path)
@@ -102,8 +98,8 @@ class RcloneHandler(BaseHandler):
         return
 
     def run_command(
-        self, rclone_parms: list[str], additional_args_str=""
-    )-> tuple[int, str ]:
+        self, rclone_parms: list[str], additional_args_str: str = ""
+        )-> tuple[int, str ]:
         """
         Run rclone_command is a subprocess
         Return tuple (result_code and result_output)
@@ -115,19 +111,16 @@ class RcloneHandler(BaseHandler):
             self.logger.error("rclone executable not found in the system's PATH.")
             return (1, "rclone executable not found in the system's PATH.")
 
-        # Parse Additional Arguments Safely
         try:
-            # posix=True (default) treats backslash '\' as an escape character.
-            # posix=False treats '\' as a normal character (better for Windows paths).
+            # Parse Additional Arguments Safely
             extra_args_list = shlex.split(additional_args_str, posix=not RcloneHandler.is_windows)
         except ValueError as e:
             self.logger.error(f"Error parsing arguments: {e}")
-            return None
-      
-
+            return (1, f"Error parsing arguments: {e}")
+        
         # Add rclone executable
         rclone_command = rclone_parms.copy()
-        rclone_command.insert(0, RcloneHandler.rclone_path)
+        rclone_command.insert(0, RcloneHandler.get_rclone_path(logger=self.logger))
         # Add extra_args_list to rclone_command
         for _ in extra_args_list:
             rclone_command.append(_)
@@ -182,17 +175,9 @@ class RcloneHandler(BaseHandler):
             ["ls", remote_path]
             )
 
-        if return_value == 0:
-            # Check if result_output is empty
-            if (result_output == ""):
-                return (0, "")
-            else:
-                return (1, result_output)
-        else:
-            return (1, result_output)
+        return (return_value, result_output)
 
-
-    def copy_file(self, source_path, remote_path=None) -> tuple[int, list[str]]:
+    def copy_file(self, source_path, remote_path=None) -> tuple[int, str]:
         """
         Copy source_path to remote_path.
         If remote_path is None, the remote_path is derived from the source_path

@@ -33,15 +33,15 @@ def main():
         logger=logger,
         base_source_path="data/Source/idrive-cloud-storage/performance-test",
         base_remote_path="test-foldermonitor/idrive-cloud-storage/performance-test-s3",
-        remote_profile="idrive-test",
-        app_name="foldermonitor"
+        profile_config="idrive-test",
+        db_path="data/foldermonitor.sqlite"
     )
 
     rclone_handler = RcloneHandler(
         logger=logger,
         base_source_path="data/Source/idrive-cloud-storage/performance-test",
         base_remote_path="test-foldermonitor/idrive-cloud-storage/performance-test-rclone",
-        remote_profile="idrive-test"
+        profile_name="idrive-test"
     )
 
     NUMBER_OF_TESTS = 10

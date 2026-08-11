@@ -44,7 +44,7 @@ class ProfileHandler:
         else:
             logger.debug(f"Config path does not exist: {self.config_path}")
 
-    def _get_config_path(self, app_name: str = None, config_name: str = None) -> Path:
+    def _get_config_path(self, app_name: str, config_name: str) -> Path:
         """Determines the platform-specific path for the config file."""
 
         if app_name is None:
@@ -75,6 +75,7 @@ class ProfileHandler:
 
         if profile_name in self.config_parser:
             return self.config_parser[profile_name]
+            # return self.config_parser[profile_name]
         else:
             return {}
 

@@ -10,7 +10,7 @@ Pre-requisites:
 
 TODO:
     This class was originally for testing rclone only.
-    On v2.0.0 we have a S3Handler as well.
+    In release v2.0.0 we have a S3Handler as well.
     The script needs to be adapted working on both RcloneHandler and S3Handler.
     This can be implemented by instantiating and instance of RcloneHandler or S3Handler.
     Assign the instance to cls.base_handler which is an instance of type BaseHandler
@@ -19,6 +19,7 @@ TODO:
 
 import argparse
 import logging.handlers
+import profile
 import sys
 import logging
 import time
@@ -31,10 +32,12 @@ from pathlib import Path
 scriptspath = Path(__file__).parent / Path("../scripts")
 sys.path.insert(0, scriptspath.resolve().as_posix())
 
+import base_handler
 from config_models import ConfigModels
 from rclone_handler import RcloneHandler
 from s3_handler import S3Handler
-from profile_handler import ProfileHandler
+from base_handler import BaseHandler
+from sqlite_handler import SQLiteHandler
 from utils.testing_util import create_test_data, delete_test_data, create_big_file
 from utils.rclone_util import CheckPath
 from utils.logging_util import get_unique_logger
@@ -42,81 +45,27 @@ from utils.logging_util import get_unique_logger
 class TestFolderMonitorIntegration(unittest.TestCase):
     """
     Integration tests for FolderMonitor.
-    This class is dynamically configured with monitor settings before execution.
+    We use rclone to perform all tests as the main purpose is to test folder_monitor.py.
     """
-    monitor_config = {}
-    logger = None
+    logger : logging.Logger
+    monitor : dict[str, str]
+    base_handler : BaseHandler
     check_delay = 1
 
     @classmethod
     def setUpClass(cls):
-        if not cls.monitor_config:
-            raise ValueError("Monitor config not set for TestFolderMonitorIntegration")
+        if not cls.logger:
+            raise ValueError("Logger not set")
+        if not cls.monitor:
+            raise ValueError("Monitor not set")
+        if not cls.base_handler:
+            raise ValueError("Base Handler not set")
+        if not cls.check_delay:
+            raise ValueError("Profile not set")
 
-        """
-        If remote_profile is missing or empty then the remote is a local file system or a folder share
-        If the remote_profile is not empty, then it must be present in the rclone config file.
-        The reason is that we use rclone to perform all tests.
-        So, even if remote_profile is in foldermonitor config file, there must be a similar remote_profile in the rclone config file
-        Currently, if remote_profile is in folder_monitor config file, then it will be handled by the internal S3Handler.
-        """
-
-
-        remote_profiles = cls.monitor_config.get("remote_profiles")
-        # If there are no remote profiles, then add emtory remote_profile (local file system)
-        if (remote_profiles is None):
-            remote_profiles = []
-        if (len(remote_profiles) == 0):
-            remote_profiles.append("")
-        
-        cls.source_path = cls.monitor_config.get("monitor_path")
-        cls.remote_path = cls.monitor_config.get("remote_path")
-        cls.monitor_name = cls.monitor_config.get("name")
-        testing_config = cls.monitor_config.get("testing", {})
-        cls.check_delay = testing_config.get("check_delay", 1)
-
-        profile_handlers: dict[str, ProfileHandler] = {}
-        # Create ProfileHandler
-        app_names = ["foldermonitor", "rclone"]
-        for app_name in app_names:
-            profile_handlers[app_name] = ProfileHandler(
-                logger=cls.logger,
-                app_name=app_name
-            )
-
-        for remote_profile in remote_profiles:
-            if (profile_handlers["foldermonitor"].get_profile(profile_name=remote_profile)):
-                # Instantiate S3Handler
-                cls.base_handler = S3Handler(
-                    logger=cls.logger,
-                    base_source_path=cls.source_path,
-                    base_remote_path=cls.remote_path,
-                    remote_profile=remote_profile    
-                    )
-                break
-            elif (profile_handlers["rclone"].get_profile(profile_name=remote_profile)):
-                # Instantiate RcloneHandler
-                cls.base_handler = RcloneHandler(
-                    logger=cls.logger,
-                    base_source_path=cls.source_path,
-                    base_remote_path=cls.remote_path,
-                    remote_profile=remote_profile    
-                    )
-                break
-            else:
-                if (remote_profile.strip() == ""):
-                    # Instantiate RcloneHandler
-                    cls.base_handler = RcloneHandler(
-                        logger=cls.logger,
-                        base_source_path=cls.source_path,
-                        base_remote_path=cls.remote_path,
-                        remote_profile=remote_profile    
-                        )
-                    break
-
-        if (cls.base_handler is None):
-            logger.info("Could not find a remote_profile for either foldermonitor or rclone.")
-            raise ValueError("This script requires at least 1 valid remote profile to run.")
+        cls.source_path = cls.monitor.get("monitor_path", "")
+        cls.remote_path = cls.monitor.get("remote_path")
+        cls.monitor_name = cls.monitor.get("name")
 
         # Setup CheckPath
         cls.check_path = CheckPath(base_handler=cls.base_handler, check_delay=cls.check_delay)
@@ -139,7 +88,9 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         delete_test_data(path=self.source_path, files=[file_name])
         
         file_path = create_test_data(path=self.source_path, files=[file_name])
-        remote_path = self.base_handler.get_remote_path(source_path=file_path)
+        remote_path = self.base_handler.get_remote_path(source_path=file_path.as_posix())
+        # Wait for sync
+        time.sleep(self.check_delay
         result_code, _ = self.check_path.file_exists(remote_path=remote_path)
         self.assertEqual(result_code, 0, f"File {file_name} should exist at {remote_path}.")
 
@@ -237,7 +188,7 @@ class TestFolderMonitorIntegration(unittest.TestCase):
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
         files = ["Subfolder-old/test1.txt", "Subfolder-old/test2.txt"]
         
-        # Cleanup
+        # Clean up source
         if (Path(self.source_path) / "Subfolder-old").exists():
             shutil.rmtree(Path(self.source_path) / "Subfolder-old")
         if (Path(self.source_path) / "Subfolder-new").exists():
@@ -284,6 +235,13 @@ if __name__ == "__main__":
         type=str,
         default="conf/config.tests.yaml",
         help="Path to monitor configuration file."
+    )
+    parser.add_argument(
+        "-d",
+        "--db-path",
+        type=str,
+        default="data/foldermonitor.sqlite",
+        help="Path to the SQLite database file."
     )
     parser.add_argument(
         "--log-file_name",
@@ -359,47 +317,82 @@ if __name__ == "__main__":
     
     overall_success = True
 
+    # Iterate over monitors
+    sqlite_handler = SQLiteHandler(
+        logger=logger,
+        db_path=args.db_path
+    )
+    monitors = sqlite_handler.get_monitors()
     for monitor in monitors:
-        monitor_path = Path(monitor.get("monitor_path"))
+        monitor_path = Path(monitor.get("monitor_path", "Unknown"))
         if not monitor_path.exists():
-            monitor_path.mkdir(parents=True)
+            logger.warning(f"Monitor path '{monitor_path}' does not exist. Creating it.")
+            continue
 
-        # Inject configuration into Test Class
-        testing_config = monitor.get("testing", {})
-        check_delay = testing_config.get("check_delay", args.check_delay)
-        
-        TestFolderMonitorIntegration.monitor_config = monitor
-        TestFolderMonitorIntegration.logger = logger
-        TestFolderMonitorIntegration.check_delay = check_delay
+        # Get all profiles of this monitor
+        profiles = sqlite_handler.get_profiles_for_monitor(monitor_id=monitor.get("id", 0))
+        if not profiles:
+            logger.warning(f"No profiles found for monitor '{monitor.get('name', 'Unknown')}'")
+            continue
 
-        logger.info(f"Running tests for monitor: {monitor.get('name')}")
-        
-        # Run Tests
-        loader = unittest.TestLoader()
-        full_suite = loader.loadTestsFromTestCase(TestFolderMonitorIntegration)
+        for profile in profiles:
+            # Check if the profile_type is implemented
+            # If profile_type is implemented than we instantiate a foldermonitor handler (currently an s3 handler)
+            # Else we instantiate an Rclone handler
+            profile_type = profile.get("profile_type", "")
+            if sqlite_handler.is_profle_type_implemented(profile_type=profile_type):
+                s3_handler = S3Handler(
+                    logger=logger,
+                    base_source_path=monitor.get("monitor_path", ""),
+                    base_remote_path=monitor.get("remote_path", ""),
+                    profile_config=profile.get("config", {})
+                )
+                base_handler = s3_handler
+            else:
+                rclone_handler = RcloneHandler(
+                    logger=logger,
+                    base_source_path=monitor.get("monitor_path", ""),
+                    base_remote_path=monitor.get("remote_path", ""),
+                    profile_name=profile.get("name", "")
+                )
+                base_handler = rclone_handler
 
-        if args.test_cases:
-            # Flatten arguments in case they were passed as a single string with spaces
-            patterns = []
-            for item in args.test_cases:
-                patterns.extend(item.split())
+            # Inject configuration into Test Class
+            TestFolderMonitorIntegration.logger = logger
+            TestFolderMonitorIntegration.monitor = monitor
+            TestFolderMonitorIntegration.base_handler = base_handler
+            TestFolderMonitorIntegration.check_delay = args.check_delay
 
-            suite = unittest.TestSuite()
-            for test in full_suite:
-                # test._testMethodName contains the name of the test method
-                if any(pattern in test._testMethodName for pattern in patterns):
-                    suite.addTest(test)
+            logger.info(f"Running tests for monitor: {monitor.get('name')}")
             
-            if suite.countTestCases() == 0:
-                 logger.warning(f"No tests matched patterns: {patterns}")
-        else:
-            suite = full_suite
+            # Run Tests
+            loader = unittest.TestLoader()
+            full_suite = loader.loadTestsFromTestCase(TestFolderMonitorIntegration)
 
-        result = unittest.TextTestRunner(verbosity=2).run(suite)
-        
-        if not result.wasSuccessful():
-            overall_success = False
-            logger.error(f"Tests failed for monitor: {monitor.get('name')}")
+            if len(args.test_cases) == 1 and (args.test_cases[0] == "" or args.test_cases[0] == "*"):
+                suite = full_suite
+            elif args.test_cases:    # Flatten arguments in case they were passed as a single string with spaces
+                patterns = []
+                for item in args.test_cases:
+                    patterns.extend(item.split())
+
+                suite = unittest.TestSuite()
+                for test in full_suite:
+                    if isinstance(test, unittest.TestCase):
+                        # test._testMethodName contains the name of the test method
+                        if any(pattern in test._testMethodName for pattern in patterns):
+                            suite.addTest(test)
+                
+                if suite.countTestCases() == 0:
+                    logger.warning(f"No tests matched patterns: {patterns}")
+            else:
+                suite = full_suite
+
+            result = unittest.TextTestRunner(verbosity=2).run(suite)
+            
+            if not result.wasSuccessful():
+                overall_success = False
+                logger.error(f"Tests failed for monitor: {monitor.get('name')}")
 
     if not overall_success:
         sys.exit(1)

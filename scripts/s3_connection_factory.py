@@ -49,12 +49,12 @@ class S3Factory:
             s3_endpoint_url = s3_endpoint
         
         s3_access_key_id = profile.get('s3_access_key_id')
-        s3_secret_access_key = profile.get('s3_secret_access_key')
+        s3_access_key_secret = profile.get('s3_access_key_secret')
 
         client = boto3.client(
             's3',
             aws_access_key_id=s3_access_key_id,
-            aws_secret_access_key=s3_secret_access_key,
+            aws_secret_access_key=s3_access_key_secret,
             endpoint_url=s3_endpoint_url,
             # Optional: Add retry config for better performance/reliability
             config=boto3.session.Config(retries={'max_attempts': 3, 'mode': 'standard'})

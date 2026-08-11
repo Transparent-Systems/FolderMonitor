@@ -7,7 +7,7 @@
     Having a native S3 handler eliminates the need for Rclone for S3 compatible cloud storage providers, like:
     - Amazon S3
     - Cloudflare R2
-    - Idrive E2
+    - IDrive E2
     - Backblaze B2
     - Alibaba Cloud OSS
 

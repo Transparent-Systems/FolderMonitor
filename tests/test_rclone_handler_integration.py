@@ -11,54 +11,56 @@ Ensure no folder monitor is currently running on any configured test monitor to 
 import argparse
 import sys
 import logging
+import logging.handlers
 import yaml
 import unittest
 from pathlib import Path
 
 # Add the scripts directory to the Python path
+
 scriptspath = Path(__file__).parent / Path("../scripts")
-sys.path.insert(0, scriptspath.resolve().as_posix())
+if scriptspath.as_posix() not in sys.path:
+    sys.path.insert(0, scriptspath.resolve().as_posix())
 
 from rclone_handler import RcloneHandler
 from utils.testing_util import create_test_data
 from utils.logging_util import get_unique_logger
-from config_models import ConfigModels
+from sqlite_handler import SQLiteHandler
+from database_test_data import DatabaseTestData
 
 class TestRcloneHandlerIntegration(unittest.TestCase):
-    monitor_config = {}
-    logger = None
+    monitor = {}
+    profile_name : str
+    logger : logging.Logger
     
     @classmethod
     def setUpClass(cls):
-        if not cls.monitor_config:
+        if not cls.monitor:
             raise ValueError("Monitor config not set for TestRcloneHandlerIntegration")
         
-        cls.monitor_name = cls.monitor_config.get("name")
+        if not cls.profile_name:
+            raise ValueError("Profile name not set for TestRcloneHandlerIntegration")
+        
+        cls.monitor_name = cls.monitor.get("name")
         cls.logger.info(f"Setting up tests for monitor: {cls.monitor_name}")
-
         subfolder = "test-rclone-handler-integration"
         
         # Setup Source Path
-        raw_source = cls.monitor_config.get("monitor_path")
+        raw_source = cls.monitor.get("monitor_path", "")
         raw_source_stripped = raw_source.rstrip('/')
         cls.source_path = f"{raw_source_stripped}/{subfolder}"
         
         # Setup remote_path
-        # In v2 the remote_profile is not in the remote_path anymore
+        # In v2 the remote_profile is not in the remote_path of RcloneHandler anymore
         # That allows us to have a single monitor propagated to one or more remote paths
-        raw_dest = cls.monitor_config.get("remote_path")
+        raw_dest = cls.monitor.get("remote_path", "")
         raw_dest_stripped = raw_dest.rstrip('/')
         cls.remote_path = f"{raw_dest_stripped}/{subfolder}"
-        remote_profile = cls.monitor_config.get("remote_profile")
-        if (remote_profile is not None) and (remote_profile != ""):
-            cls.remote_path = f"{remote_profile}:{cls.remote_path}"
-        
-
         cls.rclone_handler = RcloneHandler(
             logger=cls.logger,
             base_source_path=cls.source_path,
             base_remote_path=cls.remote_path,
-            remote_profile=remote_profile,
+            profile_name=cls.profile_name,
         )
         
         # Ensure source directory exists
@@ -76,9 +78,9 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
         (result_code, result_output) = self.rclone_handler.list_remotes()
         self.assertEqual(result_code, 0, f"List remotes failed. Output: {result_output}")
 
-    def test_03_utils(self):
+    def test_03_copy_file_to_remote_and_check_exist(self):
         """Testing file exists"""
-        self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
+        self.logger.debug(f"==> Monitor: {self.monitor_name} -> {self._testMethodName}")
         file_name = "Subfolder1/test1.txt"
         
         # Create source file
@@ -89,15 +91,15 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
         self.assertEqual(result_code, 0, f"Copied file {file_name}. Output: {result_output}")
 
         # Check file exists
-        remote_path = self.rclone_handler.get_remote_path(source_path=file_path)
-        found = self.rclone_handler.file_exists(remote_path=remote_path)
-        self.assertTrue(found, f"File exist: {remote_path}")
+        remote_path = self.rclone_handler.get_remote_path(source_path=file_path.as_posix())
+        (result_code, result_output) = self.rclone_handler.file_exists(remote_path=remote_path)
+        self.assertEqual(result_code, 0, f"File exist: {remote_path}")
 
         # Check non-existent file
         remote_path_missing = Path(self.source_path) / "file-does-not-exists.txt"
-        remote_path = self.rclone_handler.get_remote_path(source_path=remote_path_missing)
-        found = self.rclone_handler.file_exists(remote_path=remote_path)
-        self.assertFalse(found, f"File should not exist: {remote_path_missing}")
+        remote_path = self.rclone_handler.get_remote_path(source_path=remote_path_missing.as_posix())
+        (result_code, result_output) = self.rclone_handler.file_exists(remote_path=remote_path)
+        self.assertNotEqual(result_code, 0, f"File should not exist: {remote_path_missing}")
 
     def test_04_delete_file_at_remote(self):
         """Delete a file at remote"""
@@ -110,14 +112,14 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
         self.assertEqual(result_code, 0, "Setup failed: Copy file")
 
         # Delete
-        remote_path = self.rclone_handler.get_remote_path(source_path=file_path)
+        remote_path = self.rclone_handler.get_remote_path(source_path=file_path.as_posix())
         (result_code, result_output) = self.rclone_handler.delete_file(remote_path=remote_path)
         self.assertEqual(result_code, 0, f"Delete file failed. Output: {result_output}")
 
         # Check file has been deleted
-        remote_path = self.rclone_handler.get_remote_path(source_path=file_path)
-        found = self.rclone_handler.file_exists(remote_path=remote_path)
-        self.assertFalse(found, f"File has been delete: {remote_path}")
+        remote_path = self.rclone_handler.get_remote_path(source_path=file_path.as_posix())
+        (result_code, result_output) = self.rclone_handler.file_exists(remote_path=remote_path)
+        self.assertNotEqual(result_code, 0, f"File should have been deleted: {remote_path}")    
 
     def test_05_create_folder_with_files(self):
         """Create folder with files"""
@@ -151,7 +153,7 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
         self.assertEqual(result_code, 0, "Rclone copy_folder succeeded")
 
         # Delete folder
-        remote_path = self.rclone_handler.get_remote_path(head)
+        remote_path = self.rclone_handler.get_remote_path(head.as_posix())
         (result_code, result_output) = self.rclone_handler.delete_folder(remote_path=remote_path)
         self.assertEqual(result_code, 0, f"Rclone delete_folder failed for {remote_path}. Output: {result_output}")
 
@@ -173,16 +175,24 @@ class TestRcloneHandlerIntegration(unittest.TestCase):
         (result_code, result_output) = self.rclone_handler.copy_file(source_path=file_path.as_posix())
         self.assertEqual(result_code, 0, f"Copy file in folder with space failed. Output: {result_output}")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run integration tests for rclone_handler using unittest."
     )
     parser.add_argument(
-        "-c",
-        "--config",
+        "-d",
+        "--db-path",
         type=str,
-        default="conf/config.tests.yaml",
-        help="Path to monitor configuration file."
+        default="tests/data/foldermonitor.sqlite",
+        help="Path to configuration SQLite database"
+    )
+    parser.add_argument(
+        "-e",
+        "--dotenv-path",
+        type=str,
+        default="tests/data/f.env",
+        help="Path to .env file with credentials."
     )
     parser.add_argument(
         "--log-filename",
@@ -218,17 +228,12 @@ if __name__ == "__main__":
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # Load Config
-    if not ConfigModels().validate(config_path=args.config, logger=root_logger):
-        root_logger.error(f"Configuration file '{args.config}' is invalid.")
-        sys.exit(1)
-
-    with open(args.config, "r") as file:
-        monitor_config = yaml.safe_load(file)
+    log_file = Path("./conf/log.yaml")
+    with open(log_file.as_posix(), "r") as file:
+        log_config = yaml.safe_load(file)
 
     # Setup File Logging
-    log_config = monitor_config.get("logging", {})
-    LOG_FILE = log_config.get("log_file_name", args.log_filename)
+    LOG_FILE = log_config.get("file_name", args.log_filename)
     LOG_FOLDER = log_config.get("folder", "logs")
     MAX_BYTES = log_config.get("max_bytes", 10 * 1024 * 1024)
     BACKUP_COUNT = log_config.get("backup_count", 5)
@@ -248,43 +253,85 @@ if __name__ == "__main__":
     logger = get_unique_logger(args.log_level)
     logger.info("Starting Rclone Handler Integration Tests")
 
-    monitors = monitor_config.get("monitors", [])
-    overall_success = True
+    # Setup test data in database
+    database_test_data = DatabaseTestData(
+        logger=logger,
+        db_path=args.db_path,
+        dotenv_path=args.dotenv_path
+    )
+    database_test_data.remove_test_data()
+    database_test_data.load_test_data()
 
+    # Iterate over monitors and find one with profile_type implemented=false
+    sqlite_handler = SQLiteHandler(
+        logger=logger,
+        db_path=args.db_path
+    )
+
+    found_rclone_profile = False
+    monitor = {}
+    profile = {}
+    monitor_config = {}
+    monitors = sqlite_handler.get_monitors()
     for monitor in monitors:
-        # Inject configuration into Test Class
-        TestRcloneHandlerIntegration.monitor_config = monitor
-        TestRcloneHandlerIntegration.logger = logger
+        # Get a monitor with an rclone profile
+        if found_rclone_profile:
+            break
         
-        logger.info(f"Running tests for monitor: {monitor.get('name')}")
+        profiles = sqlite_handler.get_profiles_for_monitor(monitor_id=monitor.get("id", 0))
+        if not profiles:
+            continue
         
-        # Run Tests
-        loader = unittest.TestLoader()
-        full_suite = loader.loadTestsFromTestCase(TestRcloneHandlerIntegration)
+        for profile in profiles:
+            profile_type = profile.get("profile_type", "")
+            if not sqlite_handler.is_profle_type_implemented(profile_type=profile_type):
+                found_rclone_profile = True
+                break
 
-        if args.test_cases:
-            # Flatten arguments
-            patterns = []
-            for item in args.test_cases:
-                patterns.extend(item.split())
+    if not found_rclone_profile:
+        logger.info("No monitors found with an Rclone profile.")
+        sys.exit(0)
 
-            suite = unittest.TestSuite()
-            for test in full_suite:
-                if any(pattern in test._testMethodName for pattern in patterns):
+    # Inject monitor configuration into Test Class
+    TestRcloneHandlerIntegration.monitor = monitor
+    TestRcloneHandlerIntegration.profile_name = profile.get("name", "")
+    TestRcloneHandlerIntegration.logger = logger
+    logger.info(f"Running tests for monitor: {monitor.get('name')}")
+    loader = unittest.TestLoader()
+    full_suite = loader.loadTestsFromTestCase(TestRcloneHandlerIntegration)
+
+    # Run Tests
+    overall_success = True
+    if args.test_cases:
+        # Flatten arguments
+        patterns = []
+        for item in args.test_cases:
+            patterns.extend(item.split())
+
+        suite = unittest.TestSuite()
+        for test in full_suite:
+            if isinstance(test, unittest.TestCase):
+                if len(args.test_cases) == 1 and (args.test_cases[0] == "" or args.test_cases[0] == "*"):
                     suite.addTest(test)
-            
-            if suite.countTestCases() == 0:
-                 logger.warning(f"No tests matched patterns: {patterns}")
-        else:
-            suite = full_suite
-
-        result = unittest.TextTestRunner(verbosity=2).run(suite)
+                    continue
+                
+                testMethodName = test._testMethodName
+                if any(pattern in testMethodName for pattern in patterns):
+                    suite.addTest(test)
         
-        if not result.wasSuccessful():
-            overall_success = False
-            logger.error(f"Tests failed for monitor: {monitor.get('name')}")
+        if suite.countTestCases() == 0:
+                logger.warning(f"No tests matched patterns: {patterns}")
+    else:
+        suite = full_suite
+
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    
+    if not result.wasSuccessful():
+        overall_success = False
+        logger.error(f"Tests failed for monitor: {monitor_config.get('name')}")
 
     if overall_success:
         logger.info("All tests passed successfully.")    
     else:
         logger.info("Not all tests passed successfully.")
+

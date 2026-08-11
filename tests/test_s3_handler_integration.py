@@ -20,65 +20,46 @@ from pathlib import Path
 scriptspath = Path(__file__).parent / Path("../scripts")
 sys.path.insert(0, scriptspath.resolve().as_posix())
 
-from profile_handler import ProfileHandler
+from sqlite_handler import SQLiteHandler
 from s3_handler import S3Handler
 from utils.testing_util import create_test_data
 from utils.logging_util import get_unique_logger
+from database_test_data import DatabaseTestData
 
 class TestS3HandlerIntegration(unittest.TestCase):
-    monitor_config = {}
-    logger = None
+    monitor = {}
+    profile_config = {}
+    logger : logging.Logger
     
     @classmethod
     def setUpClass(cls):
-        if not cls.monitor_config:
+        if not cls.monitor:
             raise ValueError("Monitor config does not exist.")
         
-        cls.monitor_name = cls.monitor_config.get("name")
+        if not cls.profile_config:
+            raise ValueError("Profile config does not exist.")
+        
+        if not cls.logger:
+            raise ValueError("Logger does not exist.")
+        
+        cls.monitor_name = cls.monitor.get("name")
         cls.logger.info(f"Setting up tests for monitor: {cls.monitor_name}")
 
         # Setup Source Path
-        raw_source = cls.monitor_config.get("monitor_path")
+        raw_source = cls.monitor.get("monitor_path", "")
         raw_source_stripped = raw_source.rstrip('/')
         subfolder = "test-s3-handler-integration"
         cls.source_path = f"{raw_source_stripped}/{subfolder}"
         
         # Setup Destination Path
-        raw_dest = cls.monitor_config.get("remote_path")
+        raw_dest = cls.monitor.get("remote_path", "")
         raw_dest_stripped = raw_dest.rstrip('/')
         cls.remote_path =f"{raw_dest_stripped}/{subfolder}"
-        
-        # In v2.0.0 a monitor can have more than oneremote_profile. They are stored in remote_profiles
-        # Iterate over remote_profiles until we find one of type S3
-        # If no S3 profile found then throw an exception
-
-        # Create profile handler
-        profile_handler = ProfileHandler(
-            logger=cls.logger,
-            app_name="foldermonitor"
-        )
-
-        remote_profile_names = cls.monitor_config.get("remote_profiles")
-        if remote_profile_names:
-            for remote_profile_name in remote_profile_names:
-                remote_profile = profile_handler.get_profile(profile_name=remote_profile_name)
-                remote_profile_type = remote_profile.get("type")
-                if remote_profile_type.lower() == "s3":
-                    cls.remote_profile_name = remote_profile_name
-                    break
-        else:
-            # Throw exception
-            raise ValueError(f"No S3 profile found for monitor: {cls.monitor_name}")
-
-        if not cls.remote_profile_name:
-            raise ValueError(f"No S3 profile found for monitor: {cls.monitor_name}")
-        
         cls.s3_handler = S3Handler(
-            base_remote_path=cls.remote_path,
-            base_source_path=cls.source_path,
-            remote_profile=remote_profile_name,
             logger=cls.logger,
-            app_name="foldermonitor"
+            base_source_path=cls.source_path,
+            base_remote_path=cls.remote_path,
+            profile_config=cls.profile_config,
         )
         
         # For testing purpose ensure source directory exists 
@@ -87,7 +68,7 @@ class TestS3HandlerIntegration(unittest.TestCase):
     def test_01_copy_file(self):
         """Test copy file and check path exists)"""
         self.logger.debug(f"==> Monitor {self.monitor_name} -> {self._testMethodName}")
-        file_name = "Subfolder1/test1.txt"
+        file_name = "subfolder/test1.txt"
         
         # Create source file
         file_path = create_test_data(path=self.source_path, files=[file_name])
@@ -98,13 +79,13 @@ class TestS3HandlerIntegration(unittest.TestCase):
         self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
         # Check file exists
-        remote_path =self.s3_handler.get_remote_path(source_path=file_path)
+        remote_path =self.s3_handler.get_remote_path(source_path=file_path.as_posix())
         (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
         self.assertEqual(result_code, 0, f"ResultCode: {result_code}. Output: {result_output}")
 
         # Check non-existent file
         remote_path_missing = Path(self.source_path) / "file-does-not-exists.txt"
-        remote_path =self.s3_handler.get_remote_path(source_path=remote_path_missing)
+        remote_path =self.s3_handler.get_remote_path(source_path=remote_path_missing.as_posix())
         (result_code, result_output) = self.s3_handler.file_exists(remote_path=remote_path)
         self.assertGreater(result_code, 0, f"File does not exists: {remote_path}. ResultCode: {result_output}")
         # Checking directory exists is pointless for Object Storage as is stored as file meta data
@@ -216,12 +197,21 @@ if __name__ == "__main__":
         description="Run integration tests for s3_handler using unittest."
     )
     parser.add_argument(
-        "-c",
-        "--config",
+        "-d",
+        "--db-path",
         type=str,
-        default="tests/conf/config.test.yaml",
-        help="Path to monitor configuration file."
+        default="tests/data/foldermonitor.sqlite",
+        help="Path to the SQLite database file."
     )
+
+    parser.add_argument(
+        "-e",
+        "--dotenv-path",
+        type=str,
+        default="tests/data/.env",
+        help="Path to the SQLite database file."
+    )
+
     parser.add_argument(
         "--log-filename",
         type=str,
@@ -256,17 +246,13 @@ if __name__ == "__main__":
     console_handler.setFormatter(formatter)
     root_logger.addHandler(console_handler)
 
-    # Validate Config
-    # if not ConfigModels().validate(config_path=args.config, logger=root_logger):
-    #     root_logger.error(f"Configuration file '{args.config}' is invalid.")
-    #     sys.exit(1)
-
     # Load Config
-    with open(args.config, "r") as file:
-        monitor_config = yaml.safe_load(file)
+    log_configuration_file = "tests/conf/log.yaml"
+    with open(log_configuration_file, "r") as file:
+        log_config = yaml.safe_load(file)
 
     # Setup File Logging
-    log_config = monitor_config.get("logging", {})
+    log_config = log_config.get("logging", {})
     LOG_FILE = log_config.get("log_file_name", args.log_filename)
     LOG_FOLDER = log_config.get("folder", "logs")
     MAX_BYTES = log_config.get("max_bytes", 10 * 1024 * 1024)
@@ -287,41 +273,75 @@ if __name__ == "__main__":
     logger = get_unique_logger(args.log_level)
     logger.info("Starting Rclone Handler Integration Tests")
 
-    monitors = monitor_config.get("monitors", [])
+    # Setup test data in database
+    database_test_data = DatabaseTestData(
+        logger=logger,
+        db_path=args.db_path,
+        dotenv_path=args.dotenv_path
+    )
+    database_test_data.remove_test_data()
+    database_test_data.load_test_data()
+
+    # Run tests
     overall_success = True
+    sqlite_handler = SQLiteHandler(
+        logger=logger,
+        db_path=args.db_path
+    )
 
+    monitor = {}
+    profile = {}
+    monitors = sqlite_handler.get_monitors()
     for monitor in monitors:
-        # Inject configuration into Test Class
-        TestS3HandlerIntegration.monitor_config = monitor
-        TestS3HandlerIntegration.logger = logger
+        # Get a monitor with an s3 profile
+        profiles = sqlite_handler.get_profiles_for_monitor(monitor_id=monitor.get("id", 0))
+        if not profiles:
+            continue
         
-        logger.info(f"Running tests for monitor: {monitor.get('name')}")
-        
-        # Run Tests
-        loader = unittest.TestLoader()
-        full_suite = loader.loadTestsFromTestCase(TestS3HandlerIntegration)
-
-        if args.test_cases:
-            # Flatten arguments
-            patterns = []
-            for item in args.test_cases:
-                patterns.extend(item.split())
-
-            suite = unittest.TestSuite()
-            for test in full_suite:
-                if any(pattern in test._testMethodName for pattern in patterns):
-                    suite.addTest(test)
-            
-            if suite.countTestCases() == 0:
-                 logger.warning(f"No tests matched patterns: {patterns}")
+        for profile in profiles:
+            if profile.get("type", "").lower() == "s3":
+                break
         else:
-            suite = full_suite
+            continue
 
-        result = unittest.TextTestRunner(verbosity=2).run(suite)
+    if not monitor:
+        logger.info("No monitors found with an s3 profile.")
+        sys.exit(0)
+
+    # Inject configuration into Test Class
+    TestS3HandlerIntegration.monitor = monitor
+    TestS3HandlerIntegration.profile_config = profile.get("config", {})
+    TestS3HandlerIntegration.logger = logger
+    
+    logger.info(f"Running tests for monitor: {monitor.get('name')}")
+    
+    # Run Tests
+    loader = unittest.TestLoader()
+    full_suite = loader.loadTestsFromTestCase(TestS3HandlerIntegration)
+
+    if args.test_cases:
+        # Flatten arguments
+        patterns = []
+        for item in args.test_cases:
+            patterns.extend(item.split())
+
+        suite = unittest.TestSuite()
+        for test in full_suite:
+            if isinstance(test, unittest.TestCase):
+                test_method_name = test._testMethodName
+                if any(pattern in test_method_name for pattern in patterns):
+                    suite.addTest(test)
         
-        if not result.wasSuccessful():
-            overall_success = False
-            logger.error(f"Tests failed for monitor: {monitor.get('name')}")
+        if suite.countTestCases() == 0:
+                logger.warning(f"No tests matched patterns: {patterns}")
+    else:
+        suite = full_suite
+
+    result = unittest.TextTestRunner(verbosity=2).run(suite)
+    
+    if not result.wasSuccessful():
+        overall_success = False
+        logger.error(f"Tests failed for monitor: {monitor.get('name')}")
 
     logger.info("================================")    
     if overall_success:

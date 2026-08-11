@@ -12,6 +12,7 @@ FolderMonitor.spec
 bat
 bin
 data
+testdata
 temp
 logs
 pid

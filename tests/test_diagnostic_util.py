@@ -42,7 +42,7 @@ if __name__ == "__main__":
             print("Check for Rclone dependency failed")
 
     elif ("check_app_config" in test_cases):
-        if (diagnostic_util.check_app_config(config_path="tests/conf/config.test.yaml")):
+        if (diagnostic_util.check_monitor_config(config_path="tests/conf/config.test.yaml")):
             print("Config check passed")
         else:
             print("Config check failed")

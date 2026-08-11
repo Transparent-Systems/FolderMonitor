@@ -19,6 +19,7 @@ Classes:
 import os
 from pathlib import Path
 import queue
+from re import S
 import sys
 import time
 import yaml
@@ -32,6 +33,7 @@ from scripts.config_models import ConfigModels
 from scripts.monitor_handler import MonitorHandler
 from scripts.utils.logging_util import get_unique_logger
 from scripts.backup_handler import BackupHandler
+from scripts.sqlite_handler import SQLiteHandler
 from scripts.command_processor import CommandProcessor
 
 def configure_pid_file(pid_file_path: str) -> bool:
@@ -126,13 +128,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="This script monitors changes on files and subfolders in the monitor folder."
     )
-    # Argument for location of the configuration file
+    # Argument for location of the SQLite database
     parser.add_argument(
-        "-c", "--config", 
+        "-d", "--db-path", 
         type=str, 
-        default="conf/config.yaml",
+        default="data/foldermonitor.sqlite",
         metavar="<PATH>", 
-        help="Path to the configuration file"
+        help="Path to the SQlite database"
     )
 
     # Argument for location of the log file
@@ -151,11 +153,11 @@ if __name__ == "__main__":
     subparsers.add_parser("version", help="Show version")
     # Test command
     test_parser = subparsers.add_parser("test", help="Run environment and configuration checks")
-    test_parser.add_argument("-c", "--config", 
+    test_parser.add_argument("-d", "--db-config", 
         type=str, 
-        default="conf/config.yaml",
+        default="data/foldermonitor.sqlite",
         metavar="<PATH>", 
-        help="Path to the configuration file"
+        help="Path to the SQlite database"
     )
 
     # Profile command
@@ -170,27 +172,27 @@ if __name__ == "__main__":
     profile_subparsers.add_parser("edit", help="Edit a profile")
     profile_subparsers.add_parser("delete", help="Delete a profile")
     profile_test_parser = profile_subparsers.add_parser("test", help="Test a profile")
-    profile_test_parser.add_argument("-p", "--profile-name",
+    profile_test_parser.add_argument("-p", "--profile-id",
         type=str, 
-        metavar="<NAME>", 
-        help="Profile name of remote profile to test"
+        metavar="<ID>", 
+        help="Profile ID of remote profile to test"
         )
 
     config_parser = subparsers.add_parser("config", help="Manage YAML configuration (subcommands: show, file, ... ; enter 'config -h' for help)")
     config_subparsers = config_parser.add_subparsers(dest="config_subcommand", help="Config subcommands", required=True)
     config_file_parser = config_subparsers.add_parser("file", help="Show location configuration file")
-    config_file_parser.add_argument("-c", "--config", 
-        type=str, 
-        default="conf/config.yaml",
-        metavar="<PATH>", 
-        help="Path to the configuration file"
-    )
+    # config_file_parser.add_argument("-d", "--db-path", 
+    #     type=str, 
+    #     default="data/foldermonitor.sqlite",
+    #     metavar="<PATH>", 
+    # help="Path to the SQlite database"
+    # )
     config_show_parser = config_subparsers.add_parser("show", help="Show monitor configurations")
-    config_show_parser.add_argument("-c", "--config", 
+    config_show_parser.add_argument("-d", "--db-path", 
         type=str, 
-        default="conf/config.yaml",
+        default="data/foldermonitor.sqlite",
         metavar="<PATH>", 
-        help="Path to the configuration file"
+        help="Path to the SQLite database"
     )
 
     args = parser.parse_args()
@@ -282,55 +284,54 @@ if __name__ == "__main__":
     # # Get a unique logger instance
     logger = get_unique_logger(log_level=log_level)
 
-    # If config file does not exists, then we create one
-    if (not os.path.exists(args.config)):
-        print(f"App configuration file '{args.config}' does not exist.")
-        print(f"Creating new app configuration file '{args.config}'")
-        with open(args.config, "w") as file:
-            # Write version and logging configuration only
-            file.write(f"version: {__version__[0]}.{__version__[1]}.{__version__[2]}\n")
-            file.write("monitors:\n")
-            file.write("  - name: \"monitor-example\"\n")
-            file.write("    monitor_path: \"/path/to/monitor\"\n")
-            file.write("    remote_path: \"/path/to/remote\"\n")
-            file.write("    remote_profiles:\n")
-            file.write("      - \"profile-name-1\"\n")
-            file.write("      - \"profile-name-2\"\n")
-            file.write("      - \"profile-name-3\"\n")
-            file.write("    backup:\n")
-            file.write("        interval: \"24h\"\n")
-            file.write("")
+    # If SQLite database file does not exists, then we create one
+    db_path = args.db_path
+    if (os.path.exists(db_path)):
+        sqlite_handler = SQLiteHandler(db_path=db_path, logger=logger)
+    else:
+        print(f"App configuration SQLite database '{db_path}' does not exist.")
+        print(f"Creating new SQLite database: '{db_path}'")
+        # Create an empty SQLite database file
+        try:
+            sqlite_handler = SQLiteHandler(db_path=db_path, logger=logger)
+            sqlite_handler.create_schema()
+            logger.debug(f"SQLite database file '{db_path}' created.")
+        except OSError as e:
+            logger.debug(f"Error creating SQLite database file {db_path}: {e}")
+            sys.exit(1)
 
-
-    # Load app configuration
-    with open(args.config, "r") as file:
-        monitor_config = yaml.safe_load(file)
-
-    # Handle commands
+    # Handle command line arguments
     if args.command is not None:
-        command_processor = CommandProcessor(logger=logger)
-        config_path = Path(args.config).resolve()
+        command_processor = CommandProcessor(logger=logger, db_path=args.db_path)
+        config_path = Path(args.db_path).resolve()
         if args.command == "profile":
-            profile_name = getattr(args, "profile_name", None)
-            if profile_name is not  None:
-                profile_name = profile_name.strip()
-            # Put profile_name in dict object
-            command_processor.process_command(
-                command=args.command,
-                subcommand=args.profile_subcommand,
-                arguments={"profile_name" : profile_name}
-                )
+            if args.profile_subcommand == "test":
+                profile_id = args.profile_id
+                command_processor.profile_test(profile_id=profile_id)
+            elif args.profile_subcommand == "show":
+                command_processor.profile_show()
+            elif args.profile_subcommand == "new":
+                command_processor.profile_new()
+            elif args.profile_subcommand == "edit":
+                command_processor.profile_edit()
+            elif args.profile_subcommand == "delete":
+                command_processor.profile_delete()
+            else:
+                print(f"Unknown profile subcommand: {args.profile_subcommand}")
+                sys.exit(1)
         elif args.command == "config":
-            command_processor.process_command(
-                command=args.command,
-                subcommand=args.config_subcommand,
-                arguments={"config_path" : config_path}
-                )
+            if args.config_subcommand == "file":
+                command_processor.config_file()
+            else:
+                print(f"Unknown config subcommand: {args.config_subcommand}")
+                sys.exit(1)
+        elif args.command == "test":
+            command_processor.config_test()
+        elif args.command == "version":
+            command_processor.version()
         else:
-            command_processor.process_command(
-                command=args.command,
-                arguments={"config_path" : config_path}
-            )
+            print(f"Unknown command: {args.command}")
+            sys.exit(1)
 
         queue_listener.stop()
         logging.shutdown()      # Ensures all logs are written to disk
@@ -338,16 +339,14 @@ if __name__ == "__main__":
         os._exit(0)             # Suppress Python cleanup messages
 
     root_logger.setLevel(logging.DEBUG)  # Set the overall minimum logging level
-    config_version = monitor_config.get("version")
     logger.debug(
         f"folder_monitor: setup logging ready. Log level: {log_config.get('log_level', 'INFO').upper()}"
     )
-    logger.debug(f"Configuration version: {config_version}")
 
     # First validate monitor config file
-    if not ConfigModels().validate(config_path=args.config, logger=logger):
+    if not ConfigModels().validate(config_path=args.db_path, logger=logger):
         logger.error(
-            f"Configuration file '{args.config}' is invalid. Exiting."
+            f"Configuration file '{args.db_path}' is invalid. Exiting."
         )
         sys.exit(1)
 
@@ -357,21 +356,21 @@ if __name__ == "__main__":
     script_has_crashed = configure_pid_file(CRASH_PID_FILE)
 
     # --- Processing Monitors ---
-    monitors = monitor_config.get("monitors")
-    if monitors is None:
+    monitors = sqlite_handler.get_monitors()
+    if not monitors:
         logger.error(
-            f"Configuration for 'monitors' not found in {args.config}."
+            f"No monitors found in {args.db_path}. Exiting."
         )
         sys.exit(1)
 
     logger.debug(f"Monitors found: {len(monitors)}")
     monitor_handlers = set()
-    # Iterate over monitors, creating a MonitorHandler for each one and starting it
+    # Iterate over monitors, create a MonitorHandler for each one and start it
     for monitor in monitors:
         logger.debug(f"Processing monitor: {monitor['name']}")
         # Create a MonitorHandler instance for the current monitor
         monitor_handler = MonitorHandler(
-            monitor_config=monitor,
+            monitor=monitor,
             log_config=log_config,
         )
 

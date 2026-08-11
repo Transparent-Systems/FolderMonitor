@@ -60,7 +60,7 @@ class BackupHandler():
                     logger=self.logger,
                     source_path=monitor_path,
                     remote_path=remote_path,
-                    remote_profile=remote_profile
+                    profile_type=remote_profile
                 )
 
                 if handler:

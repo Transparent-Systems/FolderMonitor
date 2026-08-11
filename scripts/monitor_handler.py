@@ -277,9 +277,9 @@ class MonitorHandler:
     and stopping of the monitoring process.
     """
 
-    def __init__(self, monitor_config, log_config):
+    def __init__(self, monitor, log_config):
         self.debounce_delay = 1.0
-        self.monitor_config = monitor_config
+        self.monitor = monitor
         self.log_config = log_config
         self.observer = None
         self.action_dispatcher = None
@@ -289,25 +289,10 @@ class MonitorHandler:
             log_config.get("log_level", "INFO").upper()
         )  # Default to INFO if not specified)
 
-        self.monitor_path = monitor_config.get("monitor_path")
-        if not self.monitor_path:
-            raise ValueError("monitor_path is required in the monitor configuration.")
-
-        # If monitor_path does not exist, then raise an error
-        if not Path(self.monitor_path).exists():
-            raise FileNotFoundError(
-                f"Monitor path '{self.monitor_path}' does not exist. Please check the configuration."
-            )
-
-        if (monitor_config.get("remote_path") is None):
-            # This is a local path, currently handled y rclone
-            # Make remote_path empty string
-            self.remote_path = ""
-        else:
-            self.remote_path = monitor_config.get("remote_path")
-
-        self.remote_profiles = monitor_config.get("remote_profiles")
-        self.exclude_patterns = monitor_config.get("exclude_patterns", [])
+        self.monitor_path = monitor.get("monitor_path", "")
+        self.remote_path = monitor.get("remote_path", "")
+        self.remote_profiles = monitor.get("remote_profiles")
+        self.exclude_patterns = monitor.get("exclude_patterns", [])
         self.profile_handlers: dict[str, ProfileHandler] = {}
         profile_names = ["foldermonitor", "rclone"]
         for profile_name in profile_names:
@@ -329,7 +314,7 @@ class MonitorHandler:
         `DirModifiedEvent` to reduce noise.
         """
 
-        remote_profiles = self.monitor_config.get("remote_profiles")
+        remote_profiles = self.monitor.get("remote_profiles")
         # Iterate over remote_profiles
         action_handlers = []
         for remote_profile in remote_profiles:
@@ -338,7 +323,7 @@ class MonitorHandler:
                 logger=self.logger,
                 source_path=self.monitor_path,
                 remote_path=self.remote_path,
-                remote_profile=remote_profile
+                profile_type=remote_profile
             )
 
             if (base_handler is None):
@@ -357,7 +342,7 @@ class MonitorHandler:
         self.action_dispatcher.start()
         self.event_handler = MonitorEventHandler(
             action_dispatcher=self.action_dispatcher, 
-            monitor_config=self.monitor_config, 
+            monitor_config=self.monitor, 
             logger=self.logger
         )
         self.observer = Observer()
